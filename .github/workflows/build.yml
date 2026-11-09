@@ -1,0 +1,93 @@
+# Tote - Build & Test
+#
+# Phase 1 (planning): placeholder. Will be replaced with the real Android
+# Gradle build once the app/ module exists.
+#
+# Per build-learnings headline lesson #16: when releases exist, the build
+# MUST produce a v1+v2+v3-signed APK verified by `apksigner verify
+# --print-certs --verbose`, NOT `keytool -printcert -jarfile` (which is
+# v1-only and false-negatives v2/v3-only APKs).
+#
+# Per build-learnings headline lesson #4: green CI != working app. The build
+# also needs a wiring test with production defaults.
+#
+# Per build-learnings iron rule #2: no secrets in the workflow file. Signing
+# keys are passed via ${{ secrets.* }} references.
+
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  placeholder:
+    name: "Phase 1 placeholder - no app code yet"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Check repo state"
+        run: |
+          echo "Tote is in PLANNING phase. No app/ module exists yet."
+          echo "Once Phase 1 begins, this workflow will:"
+          echo "  1. Set up JDK 17 + Android SDK."
+          echo "  2. Cache Gradle dependencies (with Aliyun mirror first, per threshold LEARNINGS)."
+          echo "  3. Run: ./gradlew :app:assembleRelease"
+          echo "  4. Sign the APK with v1+v2+v3 (per build-learnings headline lesson #16)."
+          echo "  5. Verify with apksigner verify --print-certs --verbose."
+          echo "  6. Upload the APK + .sha256 sidecar to GitHub Releases (on tag)."
+          echo ""
+          echo "For now, this workflow just confirms the repo is reachable."
+          exit 0
+
+  # When Phase 1 starts, replace the placeholder above with:
+  #
+  # build-android:
+  #   name: "Build Android APK (release)"
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: "Set up JDK 17"
+  #       uses: actions/setup-java@v4
+  #       with:
+  #         distribution: temurin
+  #         java-version: '17'
+  #     - name: "Set up Android SDK"
+  #       uses: android-actions/setup-android@v3
+  #     - name: "Cache Gradle"
+  #       uses: actions/cache@v4
+  #       with:
+  #         path: |
+  #           ~/.gradle/caches
+  #           ~/.gradle/wrapper
+  #         key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+  #     - name: "Build release APK"
+  #       env:
+  #         TOTE_KEYSTORE_FILE: ${{ secrets.TOTE_KEYSTORE_FILE }}
+  #         TOTE_KEYSTORE_PASSWORD: ${{ secrets.TOTE_KEYSTORE_PASSWORD }}
+  #         TOTE_KEY_ALIAS: ${{ secrets.TOTE_KEY_ALIAS }}
+  #         TOTE_KEY_PASSWORD: ${{ secrets.TOTE_KEY_PASSWORD }}
+  #       run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+  #     - name: "Verify APK signature (apksigner, NOT keytool)"
+  #       run: |
+  #         APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+  #         apksigner verify --print-certs --verbose "$APK"
+  #     - name: "Generate .sha256 sidecar"
+  #       run: |
+  #         APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+  #         sha256sum "$APK" > "$APK.sha256"
+  #     - name: "Upload APK artifact"
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: tote-apk
+  #         path: app/build/outputs/apk/release/*.apk
+  #         if-no-files-found: error

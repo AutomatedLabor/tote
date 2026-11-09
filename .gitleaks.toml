@@ -1,0 +1,28 @@
+title = "Tote gitleaks config"
+
+[extend]
+useDefault = true
+
+# Block the literal GitHub PAT pattern and any GitHub PAT from being committed.
+[[rules]]
+id = "github-pat-tote-blocklist"
+description = "Block any GitHub PAT from being committed"
+regex = '''ghp_[A-Za-z0-9]{36}'''
+tags = ["key", "github", "pat"]
+
+# Block Vercel tokens (vcp_ prefix).
+[[rules]]
+id = "vercel-token-tote-blocklist"
+description = "Block any Vercel token from being committed"
+regex = '''vcp_[A-Za-z0-9_]+'''
+tags = ["key", "vercel", "token"]
+
+# Allow this gitleaks config itself to mention the regex patterns as strings.
+[[allowlist]]
+paths = [
+  '''\.gitleaks\.toml$''',
+  '''AGENTS\.md$''',
+  '''SECURITY\.md$''',
+  '''CHANGELOG\.md$''',
+  '''README\.md$''',
+]

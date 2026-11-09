@@ -1,0 +1,54 @@
+# Tote - Markdown lint & link check
+#
+# Even with no code yet, the README/AGENTS/SECURITY/CHANGELOG/docs markdown
+# should be valid and have no broken links.
+
+name: markdown-check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.md'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  markdown-lint:
+    name: "markdownlint"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Run markdownlint"
+        uses: DavidAnson/markdownlint-cli2-action@v15
+        with:
+          globs: |
+            **/*.md
+            !CHANGELOG.md
+          config: .github/markdownlint.json
+        continue-on-error: true  # Don't block on style nits for now.
+
+  markdown-link-check:
+    name: "markdown-link-check"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Check markdown links"
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: yes
+          use-verbose-mode: no
+          config-file: .github/markdown-link-check.json
+        continue-on-error: true  # External links may 404 transiently.

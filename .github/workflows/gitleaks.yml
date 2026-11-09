@@ -1,0 +1,40 @@
+# Tote - gitleaks secret scan
+#
+# Per build-learnings iron rule #2 + headline lesson #4: never paste a live
+# token into chat, file content, or commit. This workflow blocks any PR that
+# introduces a leaked secret (GitHub PAT, Vercel token, AWS keys, private
+# keys, etc.).
+#
+# The .gitleaks.toml at the repo root extends the default rules with explicit
+# blocklist entries for:
+#   - ghp_[A-Za-z0-9]{36}  (GitHub PATs)
+#   - vcp_[A-Za-z0-9_]+    (Vercel tokens)
+
+name: gitleaks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: "gitleaks scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0  # Full history for accurate scan
+
+      - name: "gitleaks"
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: true
+          GITLEAKS_CONFIG: .gitleaks.toml

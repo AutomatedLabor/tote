@@ -1,0 +1,40 @@
+# Tote - CodeQL semantic code analysis
+#
+# Per build-learnings iron rule #4 (green CI != working app) and headline
+# lesson #16 (use the canonical tool): CodeQL catches security vulnerabilities
+# that unit tests miss.
+
+name: codeql
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 4 * * 1'  # Weekly Monday 04:17 UTC
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: "CodeQL analyze"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Initialize CodeQL"
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          # If you have a custom config, point to it here.
+          # config-file: ./.github/codeql/codeql-config.yml
+
+      - name: "Perform CodeQL analysis"
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:java-kotlin"

@@ -1,0 +1,37 @@
+# Tote - OSV-Scanner dependency CVE scan
+#
+# Per build-learnings iron rule #4: green CI != working app. Known CVEs in
+# dependencies are a leading cause of "shipped but vulnerable" releases.
+
+name: osv-scanner
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '32 5 * * 1'  # Weekly Monday 05:32 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  osv-scan:
+    name: "OSV-Scanner dependency scan"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "Run OSV-Scanner"
+        uses: google/osv-scanner-action@v1.7.0
+        with:
+          # Scan all manifest files we can find (gradle, npm, etc.).
+          scan-args: |-
+            --recursive
+            --lockfile=gradle.lockfile
+            --lockfile=package-lock.json
+            ./
