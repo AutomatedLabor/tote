@@ -18,7 +18,9 @@ regex = '''vcp_[A-Za-z0-9_]+'''
 tags = ["key", "vercel", "token"]
 
 # Allow this gitleaks config itself to mention the regex patterns as strings.
-[[allowlist]]
+# Note: gitleaks v8.18+ uses [allowlist] (single map), not [[allowlist]] (array of tables).
+[allowlist]
+description = "Allow the gitleaks config and docs to mention regex patterns as strings"
 paths = [
   '''\.gitleaks\.toml$''',
   '''AGENTS\.md$''',

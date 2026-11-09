@@ -9,10 +9,17 @@ name: codeql
 on:
   push:
     branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/codeql.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/codeql.yml'
   schedule:
     - cron: '17 4 * * 1'  # Weekly Monday 04:17 UTC
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,6 +29,10 @@ jobs:
   analyze:
     name: "CodeQL analyze"
     runs-on: ubuntu-latest
+    # Skip if there's no Kotlin source yet (no app/ module). CodeQL fails
+    # with "did not detect any code written in languages supported" if
+    # there's no Java/Kotlin source to analyze.
+    if: hashFiles('app/**/*.kt', 'app/**/*.java') != ''
     steps:
       - uses: actions/checkout@v4
         with:

@@ -8,8 +8,18 @@ name: osv-scanner
 on:
   push:
     branches: [main]
+    paths:
+      - 'app/**'
+      - '**/gradle.lockfile'
+      - '**/package-lock.json'
+      - '.github/workflows/osv-scanner.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'app/**'
+      - '**/gradle.lockfile'
+      - '**/package-lock.json'
+      - '.github/workflows/osv-scanner.yml'
   schedule:
     - cron: '32 5 * * 1'  # Weekly Monday 05:32 UTC
   workflow_dispatch:
@@ -21,17 +31,17 @@ jobs:
   osv-scan:
     name: "OSV-Scanner dependency scan"
     runs-on: ubuntu-latest
+    # Skip if there's nothing to scan (no app/ module yet). Once Phase 1 begins
+    # and app/ exists with a gradle.lockfile, this will run.
+    if: hashFiles('app/**', '**/gradle.lockfile', '**/package-lock.json') != ''
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
       - name: "Run OSV-Scanner"
-        uses: google/osv-scanner-action@v1.7.0
+        uses: google/osv-scanner-action@v2.7.0
         with:
-          # Scan all manifest files we can find (gradle, npm, etc.).
           scan-args: |-
             --recursive
-            --lockfile=gradle.lockfile
-            --lockfile=package-lock.json
             ./
