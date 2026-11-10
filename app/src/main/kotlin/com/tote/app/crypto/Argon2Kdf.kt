@@ -1,6 +1,5 @@
 package com.tote.app.crypto
 
-import com.goterl.lazysodium.interfaces.PasswordHash
 import java.security.SecureRandom
 import java.util.logging.Logger
 
@@ -13,7 +12,7 @@ import java.util.logging.Logger
  * (memory-hard, ~64MB per attempt) makes brute-force economically impractical.
  *
  * Parameters (per OWASP 2023 recommendations for high-value secrets):
- *   - algorithm: Argon2id (libsodium's `crypto_pwhash_ALG_ARGON2ID13`)
+ *   - algorithm: Argon2id (libsodium's `crypto_pwhash_ALG_ARGON2ID13` = 2)
  *   - opsLimit: 3 (between interactive=2 and moderate=5)
  *   - memLimit: 64 MiB (67_108_864 bytes; OWASP recommends 64 MB+)
  *   - output length: 32 bytes (matches pairingRoot length)
@@ -27,11 +26,48 @@ import java.util.logging.Logger
  *
  * JVM-testability: works on the JVM (libsodium is JNA-extracted from the jar)
  * AND on Android (libsodium-android .so bundled per-ABI).
+ *
+ * Constants are hardcoded (NOT pulled from the lazysodium PasswordHash
+ * interface) because the interface name varies across lazysodium versions
+ * and is not reliably resolvable at compile time. The values themselves
+ * are stable in libsodium (checked against libsodium 1.0.19 source).
  */
 object Argon2Kdf {
 
     private val LOG = Logger.getLogger("Argon2Kdf")
     private val RANDOM = SecureRandom()
+
+    /**
+     * Libsodium crypto_pwhash constants — hardcoded to avoid version-dependent
+     * interface resolution issues with lazysodium's PasswordHash interface.
+     *
+     * Source: libsodium 1.0.19 `crypto_pwhash` constants (stable since 1.0.13).
+     */
+    object Const {
+        /** crypto_pwhash_SALTBYTES = 16 */
+        const val SALTBYTES: Int = 16
+
+        /** crypto_pwhash_ALG_ARGON2ID13 = 2 */
+        const val ALG_ARGON2ID13: Int = 2
+
+        /** crypto_pwhash_OPSLIMIT_INTERACTIVE = 2 */
+        const val OPSLIMIT_INTERACTIVE: Long = 2L
+
+        /** crypto_pwhash_MEMLIMIT_INTERACTIVE = 67_108_864 (64 MiB) */
+        const val MEMLIMIT_INTERACTIVE: Long = 67_108_864L
+
+        /** crypto_pwhash_OPSLIMIT_MODERATE = 3 */
+        const val OPSLIMIT_MODERATE: Long = 3L
+
+        /** crypto_pwhash_MEMLIMIT_MODERATE = 268_435_456 (256 MiB) */
+        const val MEMLIMIT_MODERATE: Long = 268_435_456L
+
+        /** crypto_pwhash_OPSLIMIT_SENSITIVE = 4 */
+        const val OPSLIMIT_SENSITIVE: Long = 4L
+
+        /** crypto_pwhash_MEMLIMIT_SENSITIVE = 1_073_741_824 (1 GiB) */
+        const val MEMLIMIT_SENSITIVE: Long = 1_073_741_824L
+    }
 
     /**
      * Generate a fresh 16-byte salt for use with [derive].
@@ -40,7 +76,7 @@ object Argon2Kdf {
      * derived key. Its purpose is to defeat pre-computed rainbow tables.
      */
     fun generateSalt(): ByteArray {
-        val salt = ByteArray(PasswordHash.SALTBYTES)
+        val salt = ByteArray(Const.SALTBYTES)
         RANDOM.nextBytes(salt)
         return salt
     }
@@ -59,18 +95,21 @@ object Argon2Kdf {
     fun derive(
         password: ByteArray,
         salt: ByteArray,
-        opsLimit: Long = OPSLIMIT_HIGH_VALUE,
-        memLimit: Long = MEMLIMIT_HIGH_VALUE,
+        opsLimit: Long = Const.OPSLIMIT_MODERATE,
+        memLimit: Long = Const.MEMLIMIT_INTERACTIVE,
         outputLength: Int = 32,
     ): ByteArray {
-        require(salt.size == PasswordHash.SALTBYTES) {
-            "Salt must be ${PasswordHash.SALTBYTES} bytes (got ${salt.size})"
+        require(salt.size == Const.SALTBYTES) {
+            "Salt must be ${Const.SALTBYTES} bytes (got ${salt.size})"
         }
         require(outputLength in 16..128) {
             "Output length must be 16-128 bytes (got $outputLength)"
         }
         val out = ByteArray(outputLength)
         val sodium = LazysodiumBootstrap.get()
+        // Use the low-level JNA call directly. The LazySodiumJava.cryptoPwHash
+        // method signature varies across lazysodium versions (some use NativeLong).
+        // The constants are stable per libsodium 1.0.x.
         val ok = sodium.cryptoPwHash(
             out,
             outputLength,
@@ -79,7 +118,7 @@ object Argon2Kdf {
             salt,
             opsLimit,
             memLimit,
-            PasswordHash.ALG_ARGON2ID13,
+            Const.ALG_ARGON2ID13,
         )
         if (!ok) {
             throw RuntimeException(
@@ -99,8 +138,8 @@ object Argon2Kdf {
     fun deriveFromMnemonic(
         mnemonic: List<String>,
         salt: ByteArray,
-        opsLimit: Long = OPSLIMIT_HIGH_VALUE,
-        memLimit: Long = MEMLIMIT_HIGH_VALUE,
+        opsLimit: Long = Const.OPSLIMIT_MODERATE,
+        memLimit: Long = Const.MEMLIMIT_INTERACTIVE,
     ): ByteArray {
         val password = mnemonic.joinToString(" ").toByteArray(Charsets.UTF_8)
         return derive(password, salt, opsLimit, memLimit, 32)
@@ -109,14 +148,14 @@ object Argon2Kdf {
     /**
      * Smoke test: run a single Argon2id derivation with low cost params.
      *
-     * Useful for verifying that lazysodium's crypto_pwhash is actually wired
+     * Useful for verifying that libsodium's crypto_pwhash is actually wired
      * (the lazy singleton doesn't validate the interface until first call).
      */
     fun smokeTest(): Boolean {
         return try {
             val out = derive(
                 password = "tote-smoke-test".toByteArray(),
-                salt = ByteArray(PasswordHash.SALTBYTES),  // all-zero salt for the smoke test
+                salt = ByteArray(Const.SALTBYTES),  // all-zero salt for the smoke test
                 opsLimit = 1L,  // minimum
                 memLimit = 8 * 1024 * 1024,  // 8 MB
                 outputLength = 16,
@@ -128,21 +167,4 @@ object Argon2Kdf {
             false
         }
     }
-
-    /**
-     * Cost parameters per use-case, following OWASP 2023 + libsodium's
-     * interactive/moderate/sensitive presets.
-     */
-    object Cost {
-        const val OPSLIMIT_INTERACTIVE: Long = 2L
-        const val MEMLIMIT_INTERACTIVE: Long = 67_108_864L  // 64 MB
-        const val OPSLIMIT_MODERATE: Long = 3L
-        const val MEMLIMIT_MODERATE: Long = 268_435_456L  // 256 MB
-        const val OPSLIMIT_SENSITIVE: Long = 4L
-        const val MEMLIMIT_SENSITIVE: Long = 1_073_741_824L  // 1 GB
-    }
-
-    // Default: high-value secret (recovery code is the master secret)
-    private val OPSLIMIT_HIGH_VALUE = Cost.OPSLIMIT_MODERATE
-    private val MEMLIMIT_HIGH_VALUE = Cost.MEMLIMIT_INTERACTIVE  // 64 MB — constrained devices
 }

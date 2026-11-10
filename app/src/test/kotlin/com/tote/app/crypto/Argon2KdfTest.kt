@@ -133,13 +133,13 @@ class Argon2KdfTest {
     @Test
     fun `Cost_constants_are_correct_per_OWASP`() {
         // Interactive: 64 MB / 2 ops — for interactive login flows
-        assertThat(Argon2Kdf.Cost.OPSLIMIT_INTERACTIVE).isEqualTo(2L)
-        assertThat(Argon2Kdf.Cost.MEMLIMIT_INTERACTIVE).isEqualTo(67_108_864L)
+        assertThat(Argon2Kdf.Const.OPSLIMIT_INTERACTIVE).isEqualTo(2L)
+        assertThat(Argon2Kdf.Const.MEMLIMIT_INTERACTIVE).isEqualTo(67_108_864L)
         // Moderate: 256 MB / 3 ops — for sensitive operations
-        assertThat(Argon2Kdf.Cost.OPSLIMIT_MODERATE).isEqualTo(3L)
-        assertThat(Argon2Kdf.Cost.MEMLIMIT_MODERATE).isEqualTo(268_435_456L)
+        assertThat(Argon2Kdf.Const.OPSLIMIT_MODERATE).isEqualTo(3L)
+        assertThat(Argon2Kdf.Const.MEMLIMIT_MODERATE).isEqualTo(268_435_456L)
         // Sensitive: 1 GB / 4 ops — for master key derivation
-        assertThat(Argon2Kdf.Cost.OPSLIMIT_SENSITIVE).isEqualTo(4L)
-        assertThat(Argon2Kdf.Cost.MEMLIMIT_SENSITIVE).isEqualTo(1_073_741_824L)
+        assertThat(Argon2Kdf.Const.OPSLIMIT_SENSITIVE).isEqualTo(4L)
+        assertThat(Argon2Kdf.Const.MEMLIMIT_SENSITIVE).isEqualTo(1_073_741_824L)
     }
 }

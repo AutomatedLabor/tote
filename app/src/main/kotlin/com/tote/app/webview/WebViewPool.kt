@@ -102,10 +102,17 @@ class WebViewPool(
         /**
          * Capture a screenshot of the WebView's current frame.
          *
-         * Per ADR-014: on Android 8+ (API 26+) we use PixelCopy (which captures
-         * the GPU-rendered surface, including WebGL / hardware-accelerated
-         * content). On older devices we fall back to View.draw(Bitmap) — which
-         * won't capture WebGL but captures the DOM-rendered pixels.
+         * Per ADR-014: we use View.draw(Canvas) for the alpha. This captures
+         * the DOM-rendered pixels but NOT hardware-accelerated surfaces
+         * (WebGL, video). For tab thumbnails this is acceptable — the user
+         * sees the page layout, not the live WebGL frame.
+         *
+         * PixelCopy (which CAN capture hardware surfaces) requires a Window
+         * or SurfaceView, but WebView is a ViewGroup — no direct overload
+         * exists. We'd need to grab the Window from the rootView, but that
+         * captures the WHOLE window, not just the WebView. For v1.0.0 we'll
+         * investigate a per-WebView SurfaceView wrapper or use
+         * PixelCopy.request(Window, Rect, ...) with the WebView's bounds.
          *
          * The screenshot is stored in [screenshot] and used as a thumbnail
          * when the tab is next displayed.
@@ -118,38 +125,12 @@ class WebViewPool(
             val targetW = minOf(width, 256)
             val targetH = minOf(height, 256)
             val bitmap = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
-            // PixelCopy requires the WebView to be attached to a window.
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
-                wv.isAttachedToWindow &&
-                wv.windowToken != null
-            ) {
-                try {
-                    val latch = java.util.concurrent.CountDownLatch(1)
-                    var success = false
-                    android.view.PixelCopy.request(wv, bitmap, { result ->
-                        success = (result == android.view.PixelCopy.SUCCESS)
-                        latch.countDown()
-                    }, wv.handler ?: android.os.Looper.getMainLooper())
-                    latch.await(500, java.util.concurrent.TimeUnit.MILLISECONDS)
-                    if (success) {
-                        screenshot = bitmap
-                    }
-                } catch (t: Throwable) {
-                    // Fall back to View.draw
-                    captureViaViewDraw(wv, bitmap)
-                }
-            } else {
-                captureViaViewDraw(wv, bitmap)
-            }
-        }
-
-        private fun captureViaViewDraw(wv: WebView, bitmap: Bitmap) {
             try {
                 val canvas = android.graphics.Canvas(bitmap)
                 wv.draw(canvas)
                 screenshot = bitmap
             } catch (t: Throwable) {
-                android.util.Log.w("WebViewPool", "View.draw fallback failed: ${t.message}")
+                android.util.Log.w("WebViewPool", "View.draw screenshot failed: ${t.message}")
             }
         }
     }

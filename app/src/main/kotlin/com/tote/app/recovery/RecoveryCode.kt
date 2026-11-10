@@ -59,8 +59,8 @@ object RecoveryCode {
         return Argon2Kdf.derive(
             password = entropy,
             salt = salt,
-            opsLimit = Argon2Kdf.Cost.OPSLIMIT_MODERATE,
-            memLimit = Argon2Kdf.Cost.MEMLIMIT_INTERACTIVE,  // 64 MB
+            opsLimit = Argon2Kdf.Const.OPSLIMIT_MODERATE,
+            memLimit = Argon2Kdf.Const.MEMLIMIT_INTERACTIVE,  // 64 MB
             outputLength = 32,
         )
     }
