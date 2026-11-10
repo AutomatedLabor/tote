@@ -132,8 +132,16 @@ class BrowserViewModel : ViewModel() {
      *
      * @param recipientDeviceIdHex The recipient's Ed25519 pubkey (64 hex chars)
      */
+    /**
+     * Send the current profile's session to a paired device via the relay.
+     *
+     * For the alpha, we just log the intent. The actual transfer requires
+     * the local device identity + epoch state, which need to be loaded
+     * from AndroidKeyStore-encrypted storage (not yet wired to UI).
+     *
+     * @param recipientDeviceIdHex The recipient's Ed25519 pubkey (64 hex chars)
+     */
     fun sendSessionToPairedDevice(recipientDeviceIdHex: String) {
-        val appContext = profileRegistry?.let { null } ?: return  // Need ToteApplication context; TODO: wire properly
         // For the alpha, we just log the intent. The actual transfer requires
         // the local device identity + epoch state, which need to be loaded
         // from AndroidKeyStore-encrypted storage (not yet wired to UI).
