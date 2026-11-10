@@ -44,6 +44,7 @@ fun BrowserScreen(
 ) {
     var urlText by remember { mutableStateOf("") }
     var showProfilePicker by remember { mutableStateOf(false) }
+    var showSendSessionDialog by remember { mutableStateOf(false) }
     val activeUrl by viewModel.activeUrl.collectAsState()
     val activeProfileId by viewModel.activeProfileId.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -126,6 +127,14 @@ fun BrowserScreen(
                 profileId = activeProfileId,
                 onClick = { showProfilePicker = true }
             )
+
+            // Send session button (triggers SessionTransferService)
+            IconButton(
+                onClick = { showSendSessionDialog = true },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(Icons.Default.Send, contentDescription = "Send session to paired device")
+            }
         }
 
         // WebView area — uses the ViewModel's pool, NOT a fresh WebView each recompose.
@@ -183,6 +192,60 @@ fun BrowserScreen(
             }
         )
     }
+
+    // Send session dialog
+    if (showSendSessionDialog) {
+        SendSessionDialog(
+            onDismiss = { showSendSessionDialog = false },
+            onSend = { recipientHex ->
+                viewModel.sendSessionToPairedDevice(recipientHex)
+                showSendSessionDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun SendSessionDialog(
+    onDismiss: () -> Unit,
+    onSend: (recipientDeviceIdHex: String) -> Unit
+) {
+    var recipientHex by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Send session to paired device") },
+        text = {
+            Column {
+                Text(
+                    "Paste the recipient device's ID (64 hex chars, or scan their QR):",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = recipientHex,
+                    onValueChange = { recipientHex = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("e.g. abc123... (64 chars)") },
+                    singleLine = true,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "This will snapshot the current profile's cookies, encrypt them with the shared epoch key, sign with your device key, and upload to the relay.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSend(recipientHex.trim()) },
+                enabled = recipientHex.length == 64
+            ) { Text("Send") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 @Composable
