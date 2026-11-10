@@ -11,13 +11,23 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.tote.app.ui.BrowserScreen
 import com.tote.app.webview.BrowserViewModel
+import com.tote.app.webview.ToteMemoryObserver
 
 class MainActivity : ComponentActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
         val viewModel: BrowserViewModel by viewModels()
+        val app = application as ToteApplication
+
+        // Wire the app-wide ProfileRegistry into the ViewModel.
+        viewModel.profileRegistry = app.profileRegistry
+
+        // Register this session's WebViewPool with the memory observer so
+        // ProcessLifecycle gets routed to its onAppBackground().
+        ToteMemoryObserver.currentPool = viewModel.webViewPool
 
         setContent {
             MaterialTheme {
@@ -33,9 +43,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Belt-and-suspenders: destroy WebViewPool explicitly
+        // Belt-and-suspenders: destroy WebViewPool explicitly.
         // per ADR-017 (ViewModel.onCleared is unreliable on some OEM ROMs)
         val viewModel by viewModels<BrowserViewModel>()
         viewModel.webViewPool.destroyAll()
+        ToteMemoryObserver.currentPool = null
     }
 }

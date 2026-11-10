@@ -1,8 +1,5 @@
 package com.tote.app.ui
 
-import android.view.ViewGroup
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -23,12 +20,21 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import android.view.ViewGroup
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import com.tote.app.ToteApplication
 import com.tote.app.webview.BrowserViewModel
+import com.tote.app.webview.DeviceTierHelper
 
 /**
  * The main browser screen: URL bar + WebView + profile pill + tab strip.
  *
  * Swipe gesture on URL bar cycles tabs (per Phase 10: ADR-012, Chrome-style).
+ *
+ * The WebView is owned by [BrowserViewModel.webViewPool] and survives across
+ * recompositions. We attach the pool's active WebView into the [AndroidView]
+ * factory (NOT a fresh WebView each recompose).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,6 +46,14 @@ fun BrowserScreen(
     var showProfilePicker by remember { mutableStateOf(false) }
     val activeUrl by viewModel.activeUrl.collectAsState()
     val activeProfileId by viewModel.activeProfileId.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // One-time setup: tell the ViewModel about the device tier so it can size
+    // the WebViewPool. We do this once on first composition.
+    LaunchedEffect(Unit) {
+        val tier = DeviceTierHelper.detect(context)
+        viewModel.applyDeviceTier(tier.maxLiveTabs)
+    }
 
     // Update URL bar when active tab changes
     LaunchedEffect(activeUrl) {
@@ -69,13 +83,22 @@ fun BrowserScreen(
                 modifier = Modifier
                     .weight(1f)
                     .pointerInput(Unit) {
-                        // Swipe gesture: horizontal swipe on URL bar cycles tabs
+                        var accumulated = 0f
                         detectHorizontalDragGestures(
-                            onDragStart = { },
+                            onDragStart = { accumulated = 0f },
                             onHorizontalDrag = { change, dragAmount ->
                                 change.consume()
+                                accumulated += dragAmount
                             },
-                            onDragEnd = { },
+                            onDragEnd = {
+                                // Swipe threshold: 80dp-ish left or right
+                                val threshold = 200f
+                                if (accumulated > threshold) {
+                                    viewModel.previousTab()
+                                } else if (accumulated < -threshold) {
+                                    viewModel.nextTab()
+                                }
+                            },
                             onDragCancel = { }
                         )
                     }
@@ -105,7 +128,7 @@ fun BrowserScreen(
             )
         }
 
-        // WebView area
+        // WebView area — uses the ViewModel's pool, NOT a fresh WebView each recompose.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -113,11 +136,27 @@ fun BrowserScreen(
         ) {
             AndroidView(
                 factory = { ctx ->
-                    WebView(ctx).apply {
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        webViewClient = WebViewClient()
-                        loadUrl("https://www.google.com")
+                    // Get the active WebView from the pool — this is the
+                    // critical wiring that makes tabs "truly live" (ADR-014).
+                    val app = ToteApplication.get(ctx)
+                    val activeTab = viewModel.tabManager.getActiveTab()
+                    if (activeTab != null) {
+                        viewModel.webViewPool.getOrCreateWebView(activeTab.id, activeTab.profileId)
+                            ?: WebView(ctx).apply {
+                                settings.javaScriptEnabled = true
+                                settings.domStorageEnabled = true
+                                webViewClient = WebViewClient()
+                                loadUrl("about:blank")
+                            }
+                    } else {
+                        // No active tab — show a blank WebView (will be replaced
+                        // once a tab is created via the + button).
+                        WebView(ctx).apply {
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            webViewClient = WebViewClient()
+                            loadUrl("about:blank")
+                        }
                     }
                 },
                 modifier = Modifier.fillMaxSize()
@@ -130,7 +169,16 @@ fun BrowserScreen(
         ProfilePickerDialog(
             onDismiss = { showProfilePicker = false },
             onProfileSelected = { profileId ->
-                viewModel.switchProfile(profileId)
+                if (profileId == "new") {
+                    // Create a new profile
+                    val app = ToteApplication.get(context)
+                    val newId = app.profileRegistry.createProfile(
+                        displayName = "Profile ${app.profileRegistry.getAllProfiles().size + 1}",
+                    )
+                    viewModel.switchProfile(newId)
+                } else {
+                    viewModel.switchProfile(profileId)
+                }
                 showProfilePicker = false
             }
         )
@@ -141,7 +189,13 @@ fun BrowserScreen(
 fun ProfilePill(profileId: String, onClick: () -> Unit) {
     val color = when (profileId) {
         "default" -> Color(0xFF2196F3)  // Blue
-        else -> Color(0xFFFF5722)        // Deep orange
+        "work" -> Color(0xFFFF9800)     // Orange
+        else -> Color(0xFFFF5722)       // Deep orange (user-created)
+    }
+    val label = when (profileId) {
+        "default" -> "Personal"
+        "work" -> "Work"
+        else -> "Profile"
     }
     Row(
         modifier = Modifier
@@ -162,7 +216,7 @@ fun ProfilePill(profileId: String, onClick: () -> Unit) {
         )
         Spacer(modifier = Modifier.width(6.dp))
         Text(
-            text = if (profileId == "default") "Personal" else "Profile",
+            text = label,
             style = MaterialTheme.typography.labelMedium,
             color = color
         )

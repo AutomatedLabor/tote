@@ -206,4 +206,27 @@ class WebViewPool(
      * Check if a tab is currently live (in the pool, not destroyed).
      */
     fun isLive(tabId: String): Boolean = liveWebViews.containsKey(tabId)
+
+    /**
+     * App went to background. Aggressively evict all paused tabs to free memory.
+     *
+     * Per ADR-014: the active tab is preserved (so the user comes back to a
+     * live page); everything else is destroyed+state-saved so it can be
+     * restored on demand.
+     *
+     * Called by [ToteMemoryObserver] on ProcessLifecycle onStop.
+     */
+    fun onAppBackground() {
+        val active = liveWebViews.entries.firstOrNull { !it.value.isPaused }
+        val toEvict = liveWebViews.entries.filter { it.key != active?.key }
+        for ((tabId, entry) in toEvict) {
+            entry.checkpoint()
+            entry.webView?.let { wv ->
+                container?.removeView(wv)
+                wv.destroy()
+            }
+            liveWebViews.remove(tabId)
+        }
+        Log.i(TAG, "onAppBackground: evicted ${toEvict.size} paused tabs, kept ${liveWebViews.size} live")
+    }
 }
