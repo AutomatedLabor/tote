@@ -4,8 +4,8 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestureorientation.DraggableState
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -188,12 +188,12 @@ fun ProfilePickerDialog(
                 )
                 ListItem(
                     headlineContent = { Text("Work") },
-                    leadingContent = { Icon(Icons.Default.Work, contentDescription = null) },
+                    leadingContent = { Icon(Icons.Default.Business, contentDescription = null) },
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(onTap = { onProfileSelected("work") })
                     }
                 )
-                Divider()
+                HorizontalDivider()
                 ListItem(
                     headlineContent = { Text("Add Profile") },
                     leadingContent = { Icon(Icons.Default.Add, contentDescription = null) },
