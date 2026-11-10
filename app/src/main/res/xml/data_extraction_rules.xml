@@ -4,19 +4,27 @@
     crypto material). NOTHING is eligible for cloud backup or device-to-device
     transfer. allowBackup=false + fullBackupContent=false already disable it
     globally; these rules are belt-and-suspenders for the named dirs.
+
+    NB: per Android docs, valid domains are: file, database, sharedpref,
+    external, root, device_file, device_database, device_sharedpref,
+    device_root. There is NO "cache" domain — cache files are excluded
+    implicitly by the system.
 -->
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="database" path="." />
         <exclude domain="file" path="." />
-        <exclude domain="cache" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
         <exclude domain="root" path="app_webview" />
     </cloud-backup>
 
     <device-transfer>
         <exclude domain="database" path="." />
         <exclude domain="file" path="." />
-        <exclude domain="cache" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
         <exclude domain="root" path="app_webview" />
     </device-transfer>
 </data-extraction-rules>
+
