@@ -1,5 +1,7 @@
 package com.tote.app.crypto
 
+import com.goterl.lazysodium.interfaces.PwHash
+import com.sun.jna.NativeLong
 import java.security.SecureRandom
 import java.util.logging.Logger
 
@@ -107,9 +109,11 @@ object Argon2Kdf {
         }
         val out = ByteArray(outputLength)
         val sodium = LazysodiumBootstrap.get()
-        // Use the low-level JNA call directly. The LazySodiumJava.cryptoPwHash
-        // method signature varies across lazysodium versions (some use NativeLong).
-        // The constants are stable per libsodium 1.0.x.
+        // The LazySodiumJava.cryptoPwHash method signature requires:
+        //   - opsLimit: long (Java primitive)
+        //   - memLimit: NativeLong (from JNA)
+        //   - alg: PwHash.Alg enum
+        // We convert memLimit from Long → NativeLong and Int → PwHash.Alg.
         val ok = sodium.cryptoPwHash(
             out,
             outputLength,
@@ -117,8 +121,8 @@ object Argon2Kdf {
             password.size,
             salt,
             opsLimit,
-            memLimit,
-            Const.ALG_ARGON2ID13,
+            NativeLong.valueOf(memLimit),
+            PwHash.Alg.PWHASH_ALG_ARGON2ID13,
         )
         if (!ok) {
             throw RuntimeException(
