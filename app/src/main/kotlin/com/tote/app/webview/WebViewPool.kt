@@ -25,7 +25,8 @@ import java.util.LinkedHashMap
  * to decouple from Activity lifecycle for memory management.
  */
 class WebViewPool(
-    private val maxLiveTabs: Int = 5  // Device-tier-dependent, set at runtime
+    /** Max simultaneous live WebViews before LRU eviction kicks in. */
+    val maxLiveTabs: Int = 5  // Device-tier-dependent, set at runtime
 ) {
     private val TAG = "WebViewPool"
 
