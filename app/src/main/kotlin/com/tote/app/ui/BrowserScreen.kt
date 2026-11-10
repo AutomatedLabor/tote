@@ -142,7 +142,7 @@ fun BrowserScreen(
                 onClick = { showPairingDialog = true },
                 modifier = Modifier.size(40.dp)
             ) {
-                Icon(Icons.Default.QrCode2, contentDescription = "Pair a device via QR")
+                Icon(Icons.Default.Add, contentDescription = "Pair a device via QR")
             }
         }
 
