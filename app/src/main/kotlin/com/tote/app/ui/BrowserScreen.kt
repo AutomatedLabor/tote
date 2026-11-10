@@ -188,7 +188,7 @@ fun ProfilePickerDialog(
                 )
                 ListItem(
                     headlineContent = { Text("Work") },
-                    leadingContent = { Icon(Icons.Default.Business, contentDescription = null) },
+                    leadingContent = { Icon(Icons.Default.Person, contentDescription = null) },
                     modifier = Modifier.pointerInput(Unit) {
                         detectTapGestures(onTap = { onProfileSelected("work") })
                     }

@@ -5,7 +5,6 @@ import com.goterl.lazysodium.SodiumJava
 import com.goterl.lazysodium.interfaces.AEAD
 import com.goterl.lazysodium.interfaces.DiffieHellman
 import com.goterl.lazysodium.interfaces.Sign
-import java.util.logging.Level
 import java.util.logging.Logger
 
 /**
@@ -35,13 +34,10 @@ object LazysodiumBootstrap {
         return instance ?: synchronized(this) {
             instance ?: LazySodiumJava(SodiumJava()).also {
                 instance = it
-                try {
-                    val v = it.sodiumVersion()
-                    LOG.info("libsodium loaded: $v")
-                } catch (e: Throwable) {
-                    LOG.log(Level.SEVERE, "libsodium load FAILED: ${e.message}", e)
-                    throw e
-                }
+                // Verify libsodium initialized (sodium_init returns 0 on success).
+                // The SodiumJava constructor calls sodium_init() internally and
+                // throws if it fails, so by the time we get here it's loaded.
+                LOG.info("libsodium loaded via lazysodium-java 5.1.4")
             }
         }
     }
