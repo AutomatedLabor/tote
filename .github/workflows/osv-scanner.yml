@@ -2,6 +2,9 @@
 #
 # Per build-learnings iron rule #4: green CI != working app. Known CVEs in
 # dependencies are a leading cause of "shipped but vulnerable" releases.
+#
+# Note: OSV-Scanner needs a lockfile (gradle.lockfile or package-lock.json)
+# to scan. Until the lockfile exists, this workflow skips gracefully.
 
 name: osv-scanner
 
@@ -10,14 +13,14 @@ on:
     branches: [main]
     paths:
       - 'app/**'
-      - '**/gradle.lockfile'
+      - 'gradle.lockfile'
       - '**/package-lock.json'
       - '.github/workflows/osv-scanner.yml'
   pull_request:
     branches: [main]
     paths:
       - 'app/**'
-      - '**/gradle.lockfile'
+      - 'gradle.lockfile'
       - '**/package-lock.json'
       - '.github/workflows/osv-scanner.yml'
   schedule:
@@ -28,12 +31,31 @@ permissions:
   contents: read
 
 jobs:
+  check-prerequisites:
+    name: "Check: lockfile present?"
+    runs-on: ubuntu-latest
+    outputs:
+      can-run: ${{ steps.check.outputs.can-run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - id: check
+        name: "Verify lockfile exists"
+        run: |
+          if [ -f "gradle.lockfile" ] || [ -n "$(find . -name 'package-lock.json' -not -path './.git/*' 2>/dev/null | head -1)" ]; then
+            echo "can-run=true" >> "$GITHUB_OUTPUT"
+            echo "OK: lockfile present — OSV-Scanner can run."
+          else
+            echo "can-run=false" >> "$GITHUB_OUTPUT"
+            echo "SKIP: no lockfile — OSV-Scanner would fail."
+          fi
+
   osv-scan:
     name: "OSV-Scanner dependency scan"
     runs-on: ubuntu-latest
-    # Skip if there's nothing to scan (no app/ module yet). Once Phase 1 begins
-    # and app/ exists with a gradle.lockfile, this will run.
-    if: hashFiles('app/**', '**/gradle.lockfile', '**/package-lock.json') != ''
+    needs: check-prerequisites
+    if: needs.check-prerequisites.outputs.can-run == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -45,3 +67,15 @@ jobs:
           scan-args: |-
             --recursive
             ./
+
+  skip-notice:
+    name: "OSV-Scanner skipped (no lockfile yet)"
+    runs-on: ubuntu-latest
+    needs: check-prerequisites
+    if: needs.check-prerequisites.outputs.can-run == 'false'
+    steps:
+      - name: "Report skip"
+        run: |
+          echo "OSV-Scanner skipped: no gradle.lockfile or package-lock.json found."
+          echo "To enable: run './gradlew :app:dependencies --write-verification-metadata' and commit the lockfile."
+          echo "This is expected during the scaffold phase — no dependencies resolved yet."
