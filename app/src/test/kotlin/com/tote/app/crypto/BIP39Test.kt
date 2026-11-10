@@ -92,7 +92,7 @@ class BIP39Test {
     }
 
     @Test
-    fun `official test vector — all-zeros 128-bit entropy → 'abandon abandon ... about'`() {
+    fun `official test vector — all-zeros 128-bit entropy produces abandon x11 + about`() {
         val entropy = ByteArray(16)  // all zeros
         val mnemonic = BIP39.entropyToMnemonic(entropy)
         assertThat(mnemonic.joinToString(" ")).isEqualTo(
@@ -101,7 +101,7 @@ class BIP39Test {
     }
 
     @Test
-    fun `official test vector — all-ones 128-bit entropy → 'zoo zoo ... wrong'`() {
+    fun `official test vector — all-ones 128-bit entropy produces zoo x11 + wrong`() {
         val entropy = ByteArray(16) { 0xFF.toByte() }
         val mnemonic = BIP39.entropyToMnemonic(entropy)
         assertThat(mnemonic.joinToString(" ")).isEqualTo(
