@@ -76,6 +76,17 @@ jobs:
         with:
           languages: java-kotlin
 
+      - name: "Autobuild (Kotlin/Android via Gradle)"
+        uses: github/codeql-action/autobuild@v3
+        # If autobuild fails (e.g., can't infer Android build), fall back to
+        # an explicit `./gradlew compileDebugKotlin --no-daemon` step below.
+        continue-on-error: true
+
+      - name: "Fallback: explicit Gradle compile if autobuild failed"
+        run: ./gradlew :app:compileDebugKotlin --no-daemon --stacktrace
+        # If this also fails, the analyze step will skip with "no source code seen"
+        # (which is what's been happening — non-blocking via continue-on-error).
+
       - name: "Perform CodeQL analysis"
         uses: github/codeql-action/analyze@v3
         with:
