@@ -8,11 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Pending (next batch)
-- Receiver-side QR scan → relay-mediated peer pub exchange (currently scans QR but doesn't yet publish our pub over the relay — user must manually paste the sender's pub)
-- First-launch onboarding tour polish (animated illustrations)
+- Animated illustrations for first-run onboarding (Lottie)
 - Play Store submission (special-use FGS declaration already in manifest)
 - Robolectric integration tests for SharedPreferences-backed stores
-- APK size reduction (R8 / ProGuard enablement, R8 shrinkResources)
+- End-to-end instrumented tests (Espresso / UI Automator) for the QR → pairing → SAS → persist flow
+
+## [v0.6.0-alpha1] - 2026-11-11
+
+### Added
+- **Relay-mediated peer-pubkey exchange** — the Go relay now exposes `PUT/GET/DELETE /peer/<deviceId>` for publishing X25519+Ed25519 pubkeys + display name. Records have a 30-day TTL (swept every 5 min). The Android `RelayClient` gains `publishPeer()` / `fetchPeer()` / `revokePeer()` + a new `PeerRecord` data class. The `ReceiverPairingFlowDialog` now publishes our pubkey to the relay right after SAS confirm. The `FullPairingFlowDialog` (sender side) now fetches the receiver's X25519 pubkey from the relay by deviceId hex (one step less friction than pasting the X25519 pubkey directly). `ToteApplication.onCreate` now publishes our pubkey on every app start (idempotent, refreshes the TTL).
+- **R8 / ProGuard enablement** — `isMinifyEnabled = true` + `isShrinkResources = true` on the release build. Comprehensive proguard-rules.pro covering lazysodium JNA reflection, kotlinx-serialization-generated serializers, OkHttp platform adapters, CameraX, ZXing, org.json, Compose runtime, Material3, AndroidX WebKit, Kotlin coroutines, and Tote's own data classes. Expected APK size reduction: 16 MB → 8-10 MB.
+
+### Changed
+- **ReceiverPairingFlowDialog** — state machine now: COMPUTE → SHOW_SAS → PUBLISH_OUR_PUB → DONE. On SAS match, publishes our pubkey to relay, persists peer + pairingRoot. Was: COMPUTE → SHOW_SAS → DONE (didn't publish).
+- **FullPairingFlowDialog (sender side)** — state machine now: SHOW_QR → FETCH_PEER_PUB → SHOW_SAS → DONE. Replaces the v0.5.0 AwaitPeerPubDialog (manual X25519 pubkey paste) with AwaitPeerDeviceIdDialog (paste 64-hex deviceId, auto-fetch X25519 pubkey from relay). Adds FETCH_ERROR stage with retry.
+- **ToteApplication.onCreate** — adds step 5: async publish our pubkey to the relay (best-effort, non-blocking).
+- **Relay sweep** — Go relay now sweeps expired peer records every 5 min alongside the existing envelope sweep.
+- **build.gradle.kts** — versionCode 5 → 6, versionName 0.5.0-alpha → 0.6.0-alpha. Release build now uses R8 + resource shrinking.
+
+### Fixed
+- **Relay-mediated peer-pubkey exchange closes the v0.5.0 deferred item** — was: "receiver pastes X25519 pubkey manually after scanning". Now: receiver publishes automatically after SAS confirm; sender fetches by deviceId hex.
 
 ## [v0.5.0-alpha1] - 2026-11-11
 

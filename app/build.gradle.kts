@@ -59,8 +59,8 @@ android {
         applicationId = "com.tote.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 5
-        versionName = "0.5.0-alpha"
+        versionCode = 6
+        versionName = "0.6.0-alpha"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -79,8 +79,10 @@ android {
 
     buildTypes {
         release {
-            // Alpha: minify off. Enable for v1 beta.
-            isMinifyEnabled = false
+            // Per v0.6.0-alpha1: R8 code shrinking + resource shrinking.
+            // Reduces APK from ~16 MB → ~8-10 MB expected.
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig =
                 if (hasReleaseKeystore) signingConfigs.getByName("release")
                 else signingConfigs.getByName("debug")

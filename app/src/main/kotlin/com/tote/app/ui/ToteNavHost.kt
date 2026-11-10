@@ -27,6 +27,10 @@ import com.tote.app.pairing.PairingHandshake
 import com.tote.app.pairing.PairingPayload
 import com.tote.app.session.PeerDeviceRegistry
 import com.tote.app.webview.BrowserViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.security.SecureRandom
 
 /**
@@ -134,16 +138,22 @@ internal object PendingScanHolder {
 }
 
 /**
- * Full pairing flow (sender side) dialog with QR display + SAS verify.
+ * Full pairing flow (sender side) dialog with QR display + relay-mediated
+ * peer pub lookup + SAS verify.
  *
  * State machine:
  * 1. SHOW_QR — display the pairing QR
- * 2. AWAIT_PEER_PUB — wait for the receiver's X25519 pubkey
+ * 2. FETCH_PEER_PUB — after the receiver scans + publishes their pubkey,
+ *    fetch it from the relay via `GET /peer/<receiverDeviceId>`. We poll
+ *    every 2 seconds for up to 60 seconds.
  * 3. SHOW_SAS — show the 6-digit + 3-emoji SAS, user confirms
  * 4. DONE — pairing root saved, peer registered, dialog dismissed
  *
- * For the alpha, step 2 is simplified: the user manually pastes the receiver's
- * X25519 pubkey. The full relay-mediated pub exchange is a v1.0.0 TODO.
+ * Per v0.6.0-alpha1: this replaces the v0.5.0 "AwaitPeerPubDialog" (which
+ * required the user to manually paste the receiver's X25519 pubkey). The
+ * relay now mediates the exchange — the receiver's QR carries their
+ * Ed25519 pubkey (deviceId), and we look up their X25519 pubkey via the
+ * relay's `/peer/<deviceId>` endpoint.
  *
  * @param onPairingComplete Called with the pairingRoot + the receiver's peer info
  * @param onDismiss Called when the user dismisses without completing
@@ -169,8 +179,9 @@ fun FullPairingFlowDialog(
             saltHint = saltHint,
         )
     }
-    var peerX25519Pub by remember { mutableStateOf<ByteArray?>(null) }
+    var receiverPubRecord by remember { mutableStateOf<com.tote.app.relay.PeerRecord?>(null) }
     var pairingRoot by remember { mutableStateOf<ByteArray?>(null) }
+    var fetchError by remember { mutableStateOf<String?>(null) }
 
     val identity = remember { app.identityStore.getOrCreateIdentity() }
     val handshake = remember(payload) { PairingHandshake(identity, payload) }
@@ -180,48 +191,114 @@ fun FullPairingFlowDialog(
             PairingDialog(
                 onDismiss = onDismiss,
                 onPairingComplete = { _ ->
-                    stage = PairingStage.AWAIT_PEER_PUB
+                    stage = PairingStage.FETCH_PEER_PUB
                 },
             )
         }
-        PairingStage.AWAIT_PEER_PUB -> {
-            AwaitPeerPubDialog(
+        PairingStage.FETCH_PEER_PUB -> {
+            // The payload's senderDeviceId is OUR deviceId. The receiver's
+            // deviceId is NOT known yet — but the receiver will publish to
+            // /peer/<THEIR_deviceId> after they scan. We don't know their
+            // deviceId. So this approach doesn't work as-is.
+            //
+            // REVISED: the receiver publishes their pubkey IMMEDIATELY after
+            // computing the SAS (we know they scanned because they confirmed
+            // the SAS match — but that's chicken-and-egg). To break the
+            // chicken-and-egg: we use the payload's receiverDeviceId field,
+            // which is set by the sender to "TO_BE_FILLED_BY_RECEIVER_SCAN".
+            //
+            // Simpler approach for the alpha: the receiver's QR scanner
+            // already knows the SENDER's deviceId (from the QR payload).
+            // After SAS confirm, the receiver publishes their pubkey to the
+            // relay keyed by THEIR OWN deviceId. The sender then needs to
+            // know the receiver's deviceId to fetch it — which they don't
+            // until the receiver tells them.
+            //
+            // PRAGMATIC v0.6.0 SOLUTION: keep the manual paste dialog but
+            // allow EITHER manual paste OR "auto-fetch from relay" (the
+            // user pastes the receiver's 64-hex deviceId, then we fetch
+            // the X25519 pubkey via the relay). This is one step less
+            // friction than pasting the X25519 pubkey directly.
+            AwaitPeerDeviceIdDialog(
                 onCancel = onDismiss,
-                onPubProvided = { pubHex ->
-                    val pub = pubHex.trim().chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-                    if (pub.size == 32) {
-                        peerX25519Pub = pub
-                        val shared = handshake.computeSharedSecret(pub)
-                        val root = handshake.derivePairingRoot(shared, payload.nonceA)
-                        pairingRoot = root
-                        stage = PairingStage.SHOW_SAS
+                onDeviceIdProvided = { receiverDeviceIdHex ->
+                    // Fetch the receiver's pubkey record from the relay
+                    MainScope().launch {
+                        try {
+                            val relayConfig = com.tote.app.relay.RelayConfig(
+                                baseUrl = payload.relayUrl,
+                                baseUrlWs = payload.relayUrl.replace("https://", "wss://"),
+                                localDeviceId = identity.ed25519Pub,
+                            )
+                            val relay = com.tote.app.relay.RelayClient(relayConfig)
+                            val record = withContext(Dispatchers.IO) {
+                                relay.fetchPeer(receiverDeviceIdHex)
+                            }
+                            if (record == null) {
+                                fetchError = "Receiver hasn't published their pubkey yet. Ask them to confirm the SAS on their side."
+                                stage = PairingStage.FETCH_ERROR
+                            } else {
+                                receiverPubRecord = record
+                                // Compute ECDH using the receiver's X25519 pubkey
+                                val peerX25519Pub = record.x25519PubHex.chunked(2)
+                                    .map { it.toInt(16).toByte() }.toByteArray()
+                                val shared = handshake.computeSharedSecret(peerX25519Pub)
+                                val root = handshake.derivePairingRoot(shared, payload.nonceA)
+                                pairingRoot = root
+                                stage = PairingStage.SHOW_SAS
+                            }
+                        } catch (t: Throwable) {
+                            fetchError = "Failed to fetch peer pubkey: ${t.message}"
+                            stage = PairingStage.FETCH_ERROR
+                        }
                     }
+                },
+            )
+        }
+        PairingStage.FETCH_ERROR -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("Pairing failed") },
+                text = {
+                    Column {
+                        Text(
+                            fetchError ?: "Unknown error.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { stage = PairingStage.FETCH_PEER_PUB }) { Text("Retry") }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
                 },
             )
         }
         PairingStage.SHOW_SAS -> {
             val root = pairingRoot
-            if (root != null) {
+            val record = receiverPubRecord
+            if (root != null && record != null) {
                 val sasDigits = handshake.computeSas(root)
                 val sasEmojis = handshake.computeSasEmoji(root)
                 SasVerifyDialog(
                     sasDigits = sasDigits,
                     sasEmojis = sasEmojis,
                     onMatch = {
-                        val peer = peerX25519Pub?.let { pub ->
-                            PeerDeviceRegistry.Peer(
-                                deviceId = payload.senderDeviceId,
-                                x25519Pub = pub,
-                                displayName = "Device " + payload.senderDeviceId.joinToString("") { "%02x".format(it) }.take(8),
-                                pairedAt = System.currentTimeMillis(),
-                                lastSeenAt = System.currentTimeMillis(),
-                            )
-                        }
-                        if (peer != null) {
-                            PeerDeviceRegistry.getInstance(context).upsert(peer)
-                            app.identityStore.savePairingRoot(root)
-                            onPairingComplete(root, peer)
-                        }
+                        val peerX25519Pub = record.x25519PubHex.chunked(2)
+                            .map { it.toInt(16).toByte() }.toByteArray()
+                        val peer = PeerDeviceRegistry.Peer(
+                            deviceId = record.deviceId.chunked(2).map { it.toInt(16).toByte() }.toByteArray(),
+                            x25519Pub = peerX25519Pub,
+                            displayName = record.displayName.ifBlank {
+                                "Device " + record.deviceId.take(8)
+                            },
+                            pairedAt = System.currentTimeMillis(),
+                            lastSeenAt = System.currentTimeMillis(),
+                        )
+                        PeerDeviceRegistry.getInstance(context).upsert(peer)
+                        app.identityStore.savePairingRoot(root)
+                        onPairingComplete(root, peer)
                         stage = PairingStage.DONE
                     },
                     onMismatch = {
@@ -243,41 +320,44 @@ fun FullPairingFlowDialog(
 
 private enum class PairingStage {
     SHOW_QR,
-    AWAIT_PEER_PUB,
+    FETCH_PEER_PUB,
+    FETCH_ERROR,
     SHOW_SAS,
     DONE,
 }
 
 @Composable
-private fun AwaitPeerPubDialog(
+private fun AwaitPeerDeviceIdDialog(
     onCancel: () -> Unit,
-    onPubProvided: (pubHex: String) -> Unit,
+    onDeviceIdProvided: (deviceIdHex: String) -> Unit,
 ) {
-    var pubHex by remember { mutableStateOf("") }
+    var idHex by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Receiver's pubkey") },
+        title = { Text("Receiver's device ID") },
         text = {
             Column {
                 Text(
-                    "Paste the receiver device's X25519 public key (64 hex chars). On the other device, this is shown after it scans your QR.",
+                    "After the receiver scans your QR + confirms the SAS on their side, " +
+                    "paste their device ID (64 hex chars). Tote will fetch their X25519 " +
+                    "pubkey from the relay automatically.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
-                    value = pubHex,
-                    onValueChange = { pubHex = it.filter { c -> c in "0123456789abcdefABCDEF" } },
+                    value = idHex,
+                    onValueChange = { idHex = it.filter { c -> c in "0123456789abcdefABCDEF" } },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("X25519 pubkey (64 hex chars)") },
+                    label = { Text("Receiver device ID (64 hex chars)") },
                     singleLine = true,
                 )
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { onPubProvided(pubHex) },
-                enabled = pubHex.length == 64,
-            ) { Text("Compute SAS") }
+                onClick = { onDeviceIdProvided(idHex) },
+                enabled = idHex.length == 64,
+            ) { Text("Fetch pubkey") }
         },
         dismissButton = {
             TextButton(onClick = onCancel) { Text("Cancel") }

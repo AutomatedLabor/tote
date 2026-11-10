@@ -22,30 +22,41 @@ import androidx.compose.ui.unit.dp
 import com.tote.app.ToteApplication
 import com.tote.app.pairing.PairingHandshake
 import com.tote.app.pairing.PairingPayload
+import com.tote.app.relay.PeerRecord
+import com.tote.app.relay.RelayClient
+import com.tote.app.relay.RelayConfig
 import com.tote.app.session.PeerDeviceRegistry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * Receiver-side pairing flow.
+ * Receiver-side pairing flow — RELAY-MEDIATED (v0.6.0+).
  *
- * Triggered after the user scans a sender's QR code. Decodes the
- * [PairingPayload], computes the ECDH shared secret using the local
- * device's X25519 private key + the sender's X25519 pubkey (from the
- * QR), derives the pairingRoot, computes the SAS, and shows the SAS
- * verify dialog.
+ * Triggered after the user scans a sender's QR code. State machine:
  *
- * On "They match":
- * - Persists the sender as a peer in [PeerDeviceRegistry]
- * - Saves the pairingRoot in [com.tote.app.crypto.IdentityStore]
- * - Dismisses
+ * 1. COMPUTE — decodes the [PairingPayload], computes the ECDH shared secret
+ *    using the local device's X25519 private key + the sender's X25519 pubkey
+ *    (from the QR), derives pairingRoot, computes SAS.
  *
- * State machine:
- * 1. COMPUTE — runs ECDH + HKDF synchronously (fast, ~1ms)
- * 2. SHOW_SAS — displays the SAS verify dialog
- * 3. DONE — peer + pairingRoot persisted, dismiss
+ * 2. SHOW_SAS — displays the SAS verify dialog. Both devices MUST show the
+ *    same 6-digit + 3-emoji SAS. On "They match":
+ *      a. PUBLISH_OUR_PUB — publish our X25519 + Ed25519 pubkey to the relay
+ *         via `PUT /peer/<ourDeviceId>` (idempotent).
+ *      b. PERSIST — add sender to PeerDeviceRegistry + save pairingRoot in
+ *         IdentityStore.
+ *      c. DONE.
+ *
+ * On "They don't match":
+ *   - Discard — possible MITM. Don't publish anything, don't persist anything.
  *
  * Per CRYPTO-SPEC-FINAL §3: this is the inverse of the sender's flow.
  * Both devices must derive the same pairingRoot + SAS, so the user can
  * visually verify no MITM is present.
+ *
+ * The sender's flow now uses [RelayClient.fetchPeer] to look up OUR X25519
+ * pubkey (instead of the user manually pasting it, as in v0.5.0).
  *
  * @param scannedQr The raw QR string ("tote://pair/<base64url>")
  * @param onPairingComplete Called when the pairing is fully committed
@@ -72,9 +83,6 @@ fun ReceiverPairingFlowDialog(
         try {
             val p = PairingPayload.fromQrString(scannedQr)
             payload = p
-            // Receiver's view: the "sender" is the device that showed the QR.
-            // The receiver (this device) computes ECDH(senderX25519Pub) using
-            // its own X25519 private key (held inside DeviceIdentity).
             val handshake = PairingHandshake(identity, p)
             val shared = handshake.computeSharedSecret(p.senderX25519Pub)
             val root = handshake.derivePairingRoot(shared, p.nonceA)
@@ -110,21 +118,45 @@ fun ReceiverPairingFlowDialog(
                     sasDigits = sasDigits,
                     sasEmojis = sasEmojis,
                     onMatch = {
-                        val peer = PeerDeviceRegistry.Peer(
-                            deviceId = p.senderDeviceId,
-                            x25519Pub = p.senderX25519Pub,
-                            displayName = "Device " + p.senderDeviceId.joinToString("") { "%02x".format(it) }.take(8),
-                            pairedAt = System.currentTimeMillis(),
-                            lastSeenAt = System.currentTimeMillis(),
-                        )
-                        PeerDeviceRegistry.getInstance(context).upsert(peer)
-                        app.identityStore.savePairingRoot(root)
-                        onPairingComplete(root, peer)
-                        stage = ReceiverStage.DONE
+                        // Publish our pubkey + persist peer + pairingRoot.
+                        // Run in IO dispatcher so we don't block the UI.
+                        stage = ReceiverStage.PUBLISH_OUR_PUB
+                        MainScope().launch {
+                            try {
+                                val relayConfig = RelayConfig(
+                                    baseUrl = p.relayUrl,
+                                    baseUrlWs = p.relayUrl.replace("https://", "wss://"),
+                                    localDeviceId = identity.ed25519Pub,
+                                )
+                                val relay = RelayClient(relayConfig)
+                                val ourName = "Device " + identity.ed25519Pub.joinToString("") { "%02x".format(it) }.take(8)
+                                withContext(Dispatchers.IO) {
+                                    relay.publishPeer(
+                                        x25519Pub = identity.x25519Pub,
+                                        ed25519Pub = identity.ed25519Pub,
+                                        displayName = ourName,
+                                    )
+                                }
+                                val peer = PeerDeviceRegistry.Peer(
+                                    deviceId = p.senderDeviceId,
+                                    x25519Pub = p.senderX25519Pub,
+                                    displayName = "Device " + p.senderDeviceId.joinToString("") { "%02x".format(it) }.take(8),
+                                    pairedAt = System.currentTimeMillis(),
+                                    lastSeenAt = System.currentTimeMillis(),
+                                )
+                                PeerDeviceRegistry.getInstance(context).upsert(peer)
+                                app.identityStore.savePairingRoot(root)
+                                onPairingComplete(root, peer)
+                                stage = ReceiverStage.DONE
+                            } catch (t: Throwable) {
+                                Log.e("ReceiverPairing", "publishPeer failed", t)
+                                error = "Failed to publish our pubkey to relay: ${t.message}"
+                                stage = ReceiverStage.ERROR
+                            }
+                        }
                     },
                     onMismatch = {
-                        // Discard — possible MITM
-                        Log.w("ReceiverPairing", "SAS mismatch reported by user — discarding pairing")
+                        Log.w("ReceiverPairing", "SAS mismatch — discarding pairing")
                         stage = ReceiverStage.DONE
                     },
                     onDismiss = {
@@ -132,6 +164,17 @@ fun ReceiverPairingFlowDialog(
                     },
                 )
             }
+        }
+        ReceiverStage.PUBLISH_OUR_PUB -> {
+            AlertDialog(
+                onDismissRequest = onDismiss,
+                title = { Text("Publishing…") },
+                text = { Text("Publishing our pubkey to the relay so the sender can fetch it…") },
+                confirmButton = {},
+                dismissButton = {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                },
+            )
         }
         ReceiverStage.ERROR -> {
             AlertDialog(
@@ -159,6 +202,7 @@ fun ReceiverPairingFlowDialog(
 private enum class ReceiverStage {
     COMPUTE,
     SHOW_SAS,
+    PUBLISH_OUR_PUB,
     ERROR,
     DONE,
 }

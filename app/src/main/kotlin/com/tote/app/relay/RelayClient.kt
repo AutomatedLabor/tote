@@ -5,7 +5,7 @@ import com.tote.app.crypto.SHA256
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -231,6 +231,117 @@ class RelayClient(private val config: RelayConfig) {
         }
     }
 
+    // ===== Peer-pubkey exchange (relay-mediated ECDH) =====
+    //
+    // Per CRYPTO-SPEC-FINAL §3: after QR scan, the receiver needs the sender's
+    // X25519 pubkey. The QR carries it (so the receiver gets it directly).
+    // The REVERSE direction (sender needs receiver's X25519 pubkey) requires
+    // a relay round-trip — the receiver publishes its pubkey, the sender
+    // fetches it.
+    //
+    // Endpoints:
+    //   PUT    /peer/<deviceId>     — publish your X25519 + Ed25519 pub + name
+    //   GET    /peer/<deviceId>     — fetch a peer's pubkey record
+    //   DELETE /peer/<deviceId>    — revoke your pubkey (e.g., on nuke)
+    //
+    // Auth: PUT/DELETE require X-Device-ID header == deviceId in path.
+
+    /**
+     * Publish (or update) this device's pubkey record on the relay.
+     *
+     * Idempotent. Use after onboarding completes (so peers can find you) and
+     * after rotation (to refresh the record).
+     *
+     * @return true on success (200 OK)
+     */
+    fun publishPeer(
+        x25519Pub: ByteArray,
+        ed25519Pub: ByteArray,
+        displayName: String,
+    ): Boolean {
+        val deviceIdHex = config.localDeviceId.toHex()
+        val url = "${config.baseUrl}/peer/$deviceIdHex"
+        val body = org.json.JSONObject().apply {
+            put("x25519_pub", x25519Pub.toHex())
+            put("ed25519_pub", ed25519Pub.toHex())
+            put("display_name", displayName)
+        }.toString()
+        val request = Request.Builder()
+            .url(url)
+            .put(body.toRequestBody("application/json".toMediaTypeOrNull()))
+            .addHeader("X-Device-ID", deviceIdHex)
+            .build()
+        return try {
+            httpClient.newCall(request).execute().use { response ->
+                response.code == 200
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "publishPeer failed: ${t.message}")
+            false
+        }
+    }
+
+    /**
+     * Fetch a peer's pubkey record from the relay.
+     *
+     * @param deviceIdHex The peer's device ID (Ed25519 pubkey as 64-char hex)
+     * @return [PeerRecord] on success, null on 404 / network error
+     */
+    fun fetchPeer(deviceIdHex: String): PeerRecord? {
+        val url = "${config.baseUrl}/peer/$deviceIdHex"
+        val request = Request.Builder().url(url).get().build()
+        return try {
+            httpClient.newCall(request).execute().use { response ->
+                if (response.code != 200) return null
+                val body = response.body?.string() ?: return null
+                parsePeerRecord(body)
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "fetchPeer failed: ${t.message}")
+            null
+        }
+    }
+
+    /**
+     * Delete this device's pubkey record from the relay.
+     *
+     * Called during nuke / unpair-all so peers can no longer find this device.
+     */
+    fun revokePeer(): Boolean {
+        val deviceIdHex = config.localDeviceId.toHex()
+        val url = "${config.baseUrl}/peer/$deviceIdHex"
+        val request = Request.Builder()
+            .url(url)
+            .delete()
+            .addHeader("X-Device-ID", deviceIdHex)
+            .build()
+        return try {
+            httpClient.newCall(request).execute().use { response ->
+                response.code == 204
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "revokePeer failed: ${t.message}")
+            false
+        }
+    }
+
+    private fun parsePeerRecord(body: String): PeerRecord? {
+        return try {
+            val o = org.json.JSONObject(body)
+            PeerRecord(
+                deviceId = o.getString("device_id"),
+                x25519PubHex = o.getString("x25519_pub"),
+                ed25519PubHex = o.optString("ed25519_pub", ""),
+                displayName = o.optString("display_name", ""),
+                updatedAt = o.getLong("updated_at"),
+                expiresAt = o.getLong("expires_at"),
+            )
+        } catch (t: Throwable) {
+            Log.w(TAG, "parsePeerRecord failed: ${t.message}")
+            null
+        }
+    }
+
     /**
      * Connect to the WebSocket for push notifications on new envelopes.
      */
@@ -355,6 +466,28 @@ data class InboxEntry(
      * in [PeerDeviceRegistry] for signature verification on receive.
      */
     val senderId: String? = null,
+)
+
+/**
+ * Peer-pubkey record fetched from the relay's `/peer/<deviceId>` endpoint.
+ *
+ * Per CRYPTO-SPEC-FINAL §3: this is what the sender uses to learn the
+ * receiver's X25519 pubkey after the receiver scans the sender's QR.
+ * The sender already has the receiver's Ed25519 pubkey from the QR
+ * (it's the receiver's `PairingPayload.senderDeviceId`), but the X25519
+ * pubkey isn't carried in the QR — only its Ed25519 counterpart is.
+ *
+ * The receiver publishes its record via [RelayClient.publishPeer] right
+ * after onboarding or after pairing. The sender fetches it via
+ * [RelayClient.fetchPeer].
+ */
+data class PeerRecord(
+    val deviceId: String,          // hex Ed25519 pubkey (64 chars)
+    val x25519PubHex: String,      // hex X25519 pubkey (64 chars)
+    val ed25519PubHex: String,     // hex Ed25519 pubkey (64 chars; may be empty)
+    val displayName: String,
+    val updatedAt: Long,           // epoch seconds
+    val expiresAt: Long,           // epoch seconds
 )
 
 enum class ConnectionState {

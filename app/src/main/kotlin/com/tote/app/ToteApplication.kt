@@ -8,6 +8,10 @@ import com.tote.app.crypto.IdentityStore
 import com.tote.app.crypto.LazysodiumBootstrap
 import com.tote.app.profile.ProfileRegistry
 import com.tote.app.webview.ToteMemoryObserver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Tote application entry point.
@@ -74,6 +78,42 @@ class ToteApplication : Application() {
             Log.i(TAG, "Memory observer installed ✓")
         } catch (t: Throwable) {
             Log.w(TAG, "Memory observer install failed (non-fatal): ${t.message}")
+        }
+
+        // 5. Publish our pubkey to the relay (best-effort, async — don't block onCreate).
+        // Per v0.6.0-alpha1: relay-mediated peer-pubkey exchange. Other devices
+        // need to be able to fetch our X25519 pubkey to complete the pairing
+        // handshake. We publish on every app start (the relay endpoint is
+        // idempotent, so this just refreshes the TTL).
+        try {
+            val identity = identityStore.getOrCreateIdentity()
+            val relayConfig = com.tote.app.relay.RelayConfig(
+                baseUrl = "https://relay.tote.app/v1",
+                baseUrlWs = "wss://relay.tote.app/v1",
+                localDeviceId = identity.ed25519Pub,
+            )
+            val relay = com.tote.app.relay.RelayClient(relayConfig)
+            val ourName = "Device " + identity.ed25519Pub.joinToString("") { "%02x".format(it) }.take(8)
+            MainScope().launch {
+                try {
+                    val ok = withContext(Dispatchers.IO) {
+                        relay.publishPeer(
+                            x25519Pub = identity.x25519Pub,
+                            ed25519Pub = identity.ed25519Pub,
+                            displayName = ourName,
+                        )
+                    }
+                    if (ok) {
+                        Log.i(TAG, "Peer pubkey published to relay ✓")
+                    } else {
+                        Log.w(TAG, "Peer pubkey publish returned non-200 — relay may be down")
+                    }
+                } catch (t: Throwable) {
+                    Log.w(TAG, "Peer pubkey publish failed (non-fatal): ${t.message}")
+                }
+            }
+        } catch (t: Throwable) {
+            Log.w(TAG, "Failed to enqueue peer pubkey publish: ${t.message}")
         }
 
         Log.i(TAG, "Tote ready.")
