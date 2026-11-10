@@ -106,6 +106,18 @@ class KeystoreWrapperTest {
     }
 
     @Test
+    fun `decrypt_with_exactly_iv_plus_tag_bytes_succeeds_for_empty_plaintext`() {
+        // Edge case: empty plaintext encrypts to exactly iv(12) + tag(16) = 28 bytes.
+        // The decrypt side must accept this length (>= rather than >).
+        val key = newSoftwareKey()
+        val empty = ByteArray(0)
+        val ciphertext = AesGcmMath.encrypt(empty, key)
+        assertThat(ciphertext.size).isEqualTo(28)
+        val recovered = AesGcmMath.decrypt(ciphertext, key)
+        assertThat(recovered).isEqualTo(empty)
+    }
+
+    @Test
     fun `GCM_IV_LENGTH_is_12_bytes`() {
         assertThat(KeystoreWrapper.GCM_IV_LENGTH).isEqualTo(12)
     }

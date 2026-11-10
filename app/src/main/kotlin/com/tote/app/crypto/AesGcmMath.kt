@@ -51,7 +51,7 @@ object AesGcmMath {
      *   (< IV_LENGTH + TAG_LENGTH_BYTES)
      */
     fun decrypt(ciphertext: ByteArray, key: SecretKey): ByteArray {
-        require(ciphertext.size > IV_LENGTH + TAG_LENGTH_BYTES) {
+        require(ciphertext.size >= IV_LENGTH + TAG_LENGTH_BYTES) {
             "Ciphertext too short: ${ciphertext.size} bytes (need at least ${IV_LENGTH + TAG_LENGTH_BYTES})"
         }
         val iv = ciphertext.copyOfRange(0, IV_LENGTH)
