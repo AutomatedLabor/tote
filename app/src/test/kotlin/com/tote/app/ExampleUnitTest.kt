@@ -1,18 +1,21 @@
 package com.tote.app
 
-import com.google.common.truth.Truth.assertThat
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Trivial unit test so the JUnit report step in CI has something to chew on.
+ * Trivial smoke test so the JUnit report step in CI has something to chew on
+ * even before the crypto-module tests are wired up.
  *
- * Uses Google Truth (`assertThat(...).isEqualTo(...)`); the Truth dependency
- * is declared in gradle/libs.versions.toml and wired as `testImplementation`
- * in app/build.gradle.kts.
+ * NB: Uses JUnit's [assertEquals] instead of Google Truth's [assertThat]
+ * because the assertThat overloads for primitive Int are ambiguous under
+ * Kotlin when both JUnit + Truth are on the test classpath. Truth assertions
+ * live alongside this in the crypto-module test files (no ambiguity there
+ * because we always pass String or ByteArray, which are unambiguous).
  */
 class ExampleUnitTest {
     @Test
     fun addition_isCorrect() {
-        assertThat(1 + 1).isEqualTo(2)
+        assertEquals(2, 1 + 1)
     }
 }
