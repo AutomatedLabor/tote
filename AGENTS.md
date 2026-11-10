@@ -20,13 +20,14 @@ Source: [`AutomatedLabor/build-learnings`](https://github.com/AutomatedLabor/bui
 
 ## Step 1 - Bootstrap your sandbox
 
-Your sandbox is blank. Do not assume state.
+Your sandbox may be blank OR may have stale state from a previous session. Do not assume.
 
 1. **Probe what's there.** `which git python3 node gh apksigner gradle`. Do not assume any tool is installed.
 2. **Resolve the secret at runtime.** Use env vars. Never echo, never commit, never log, never paste into a script file you save to disk. If the prompt contains a plaintext PAT, treat it as already-leaked and tell the user to revoke and rotate.
 3. **PAT validity probe.** `curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token $GH_TOKEN" https://api.github.com/user` - must return `200`.
-4. **Clone the repos you'll need** into `/home/z/my-project/work/`. Set `git config user.name` / `user.email` per-repo so commits don't fail. Always `git fetch origin && git reset --hard origin/main` before acting.
-5. **Document any missing tool with a fallback.** Example: "apksigner unavailable - APK signature verification reduced to `unzip -t` + `sha256sum` against the published sidecar." Tell the user what reduced-scope behavior you accepted; do not silently skip verification.
+4. **Clone the repos you'll need** into `/home/z/my-project/`. Set `git config user.name` / `user.email` per-repo so commits don't fail. Always `git fetch origin && git pull --rebase origin main` before acting.
+5. **Read `tote-docs/ops/WORK-PROGRESS.md`** — the status block at the top tells you the current batch, task in progress, CI SHA, and next action. This is the recovery point if the sandbox dies mid-session.
+6. **Document any missing tool with a fallback.** Example: "apksigner unavailable - APK signature verification reduced to `unzip -t` + `sha256sum` against the published sidecar." Tell the user what reduced-scope behavior you accepted; do not silently skip verification.
 
 ## Step 2 - Read the docs repo before writing code
 
@@ -35,33 +36,48 @@ This repo (`AutomatedLabor/tote`) holds the code. The docs repo (`AutomatedLabor
 **Before writing any production code, read (in this order):**
 
 1. `tote-docs/README.md` - project overview.
-2. `tote-docs/LOG.md` - session log (so you know what's been done).
-3. `tote-docs/planning/SYNTHESIS.md` - the unified plan.
-4. `tote-docs/planning/ROADMAP.md` - the phased plan.
-5. `tote-docs/planning/DECISIONS.md` - the architecture decision records (ADRs).
-6. `tote-docs/THREAT-MODEL.md` - the threat model and defenses.
-7. `tote-docs/SURVIVOR-UX.md` - the worst-day UX spec (mandatory v1 deliverable).
-8. `tote-docs/planning/COOKIE-FIDELITY-SPIKE.md` - the major implementation risk.
-9. `tote-docs/research/council-*.md` - the three council outputs (verbatim from session-1).
-10. `tote-docs/council-iter-1/REPORT.md` - the council findings and verdict.
+2. `tote-docs/LOG.md` - session log (so you know what's been done — sessions 1-12 logged as of v0.2.0-alpha1).
+3. `tote-docs/ops/WORK-PROGRESS.md` - master work list with status block at top (current batch + task-in-progress + CI SHA).
+4. `tote-docs/planning/SYNTHESIS.md` - the unified plan.
+5. `tote-docs/planning/ROADMAP.md` - the phased plan.
+6. `tote-docs/planning/DECISIONS.md` - the architecture decision records (ADRs).
+7. `tote-docs/THREAT-MODEL.md` - the threat model and defenses.
+8. `tote-docs/SURVIVOR-UX.md` - the worst-day UX spec (mandatory v1 deliverable).
+9. `tote-docs/planning/COOKIE-FIDELITY-SPIKE.md` - the major implementation risk.
+10. `tote-docs/planning/CRYPTO-SPEC-FINAL.md` - the crypto spec (all 7 conditions resolved).
+11. `tote-docs/research/council-*.md` - the three council outputs (verbatim from session-1).
+12. `tote-docs/council-iter-1/REPORT.md` - the council findings and verdict.
 
 If the docs repo is not accessible, ask the principal. Do not invent the architecture from scratch.
 
-## Step 3 - The Phase 0 spikes (the current milestone)
+## Step 3 - Current state (as of v0.2.0-alpha1)
 
-Phase 0 is the spike phase. Each spike produces a written report added to `tote-docs/planning/spikes/`. No production code until all critical spikes pass.
+**v0.2.0-alpha1 is shipped** — APK on GitHub Releases (draft), 112 unit tests passing, all crypto + cookie transfer + relay + pairing + recovery + kill switch modules built and tested at the API level.
 
-The 6 spikes:
-1. **0.1 - Profile isolation.** Stand up an Android app with `androidx.webkit:webkit:1.10.0`. Create two Profiles, two WebViews, setProfile before first load. Prove cookies don't cross-contaminate. Validate `isFeatureSupported(MULTI_PROFILE)` across 3 real WebView provider versions.
-2. **0.2 - Cookie fidelity.** Set a `Secure; HttpOnly; SameSite=Lax; Partitioned` cookie, `flush()`, snapshot the SQLite, parse the `cookies` table, confirm all attributes survived. (See `tote-docs/planning/COOKIE-FIDELITY-SPIKE.md` for the full spike plan.)
-3. **0.3 - iOS 17 dataStore persistence.** Confirm `WKWebsiteDataStore.dataStoreForIdentifier:` persists across app restarts (the documented gotcha is that the store isn't written to disk until a WKWebView actually loads a page - need to warm it with `about:blank`).
-4. **0.4 - Crypto pairing.** libsodium: ephemeral X25519 ECDH over a fake relay, derive `pairing_root` via HKDF, encrypt a fake cookie blob with XChaCha20-Poly1305, decrypt other side, validate the SAS computation matches.
-5. **0.5 - Go relay skeleton.** Single binary, `POST/GET/DELETE /envelope`, `WS /inbox/{id}/events`, embedded SQLite + TTL sweeper.
-6. **0.6 - CHIPS partition round-trip.** Confirm SQLite preserves `partition_key`; on destination, does the partitioned cookie behave or sit unused?
+What works:
+- Crypto module (lazysodium-backed): Ed25519, X25519, XChaCha20-Poly1305, HKDF-SHA256, epoch ratchet Variant B
+- Cookie snapshot pipeline (SQLite + OSCrypt fallback)
+- Cookie importer (CookieManager.setCookie per host)
+- Relay client (OkHttp + WebSocket + PoW + rate limiter)
+- BIP-39 mnemonic (full spec, 2048 words, checksum)
+- Pairing handshake (QR + ECDH + SAS)
+- Recovery code (12-word mnemonic + rotate)
+- Kill switch (nuke + duress state machine)
+- Android foundation (ToteApplication, BrowserScreen, WebViewPool, DeviceTierHelper, ToteMemoryObserver)
 
-**Phase 0 exit criteria:** all spike reports written; the 4 critical spikes (0.1-0.4) confirm the architecture is buildable as designed. If any spike fails, reconvene the Council before proceeding to Phase 1.
+What does NOT work yet (the next batches):
+- UI wiring for cookie transfer button
+- Pairing flow screens (QR + SAS)
+- Recovery onboarding flow
+- Kill switch settings screen
+- Relay client wired to foreground sync service
+- Truly-live tabs polish (screenshot, scrollY, form state, saveState)
+- Theme + adaptive launcher icon
+- Accessibility
+- Empty/error/loading states
+- First-run onboarding tour
 
-## Step 4 - The build contract (once Phase 1 begins)
+## Step 4 - The build contract
 
 When writing production code:
 
@@ -74,19 +90,26 @@ When writing production code:
 
 ## Step 5 - The tech stack (locked per ADR-007)
 
-- **Language:** Kotlin (Android) + Swift (iOS).
-- **Shared module:** Kotlin Multiplatform for pure logic (cookie-record schema, pairing protocol, sync engine). No platform WebView types across the bridge.
+- **Language:** Kotlin (Android). iOS deferred.
+- **Shared module:** Plain Kotlin for now (KMP-extractable). No platform WebView types across the bridge.
 - **WebView:** `android.webkit.WebView` + `androidx.webkit.*` directly. No wrapper library.
-- **Crypto:** libsodium (lazysodium-java on Android, libsodium Swift pkg on iOS). Ed25519 + X25519 ECDH + XChaCha20-Poly1305.
-- **Long-term pairing key:** Ed25519 in AndroidKeyStore (`setIsStrongBoxBacked` where supported) / iOS Keychain (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`). Note: Ed25519 can't live in iOS Secure Enclave (P-256 only).
-- **Relay:** Go. Single static binary. Embedded SQLite.
+- **Crypto:** libsodium via `lazysodium-java` 5.1.4 (JNA bindings). Ed25519 + X25519 ECDH + XChaCha20-Poly1305-IETF + HKDF-SHA256.
+- **HTTP:** OkHttp 4.12.0 (relay client + WebSocket).
+- **Serialization:** kotlinx.serialization (JSON + CBOR).
+- **Long-term pairing key:** Ed25519 in AndroidKeyStore (`setIsStrongBoxBacked` where supported). Note: Ed25519 can't live in iOS Secure Enclave (P-256 only) — iOS deferred.
+- **Relay:** Go. Single static binary. Embedded SQLite. (Separate `tote-relay` repo, planned public.)
 - **CI:** GitHub Actions (build, codeql, gitleaks, osv-scanner, markdown-check). All blocking on PR.
+- **Min SDK:** 26 (Android 8.0+).
+- **Target SDK:** 34 (Android 14).
+- **Compose Compiler:** 1.5.14 (paired with Kotlin 1.9.24 — `composeOptions` not the `org.jetbrains.kotlin.plugin.compose` plugin, which requires Kotlin 2.0+).
 
-## Step 6 - The cron heartbeat (once Phase 1 ships)
+## Step 6 - The cron heartbeat (post-v1.0.0)
 
-Once Phase 1 ships the first APK, register the standard 4 crons (A=verification, B=build trigger, C=council, D=security scan). Plus Job E (user-side watchdog) which the principal controls.
+Once v1.0.0 ships, register the standard 4 crons (A=verification, B=build trigger, C=council, D=security scan). Plus Job E (user-side watchdog) which the principal controls.
 
 **The first iteration of EACH cron must run synchronously in the chat session that registers it.** Per iron rule #13/#14: register != execute. After every `cron create`, immediately run the first iteration in-chat, then verify via `cron list`, then say "the recurring loop is in place."
+
+Until v1.0.0 ships, no crons are registered. The `WORK-PROGRESS.md` file in `tote-docs/ops/` is the recovery point — any cron-fired agent reading it knows the current batch + task-in-progress.
 
 ## Step 7 - Reporting back
 
@@ -97,6 +120,8 @@ When done, summarize what you built in <= 100 words, name the deliverable files 
 ## See also
 
 - `tote-docs/conventions/build-learnings-quick-ref.md` - the digest of build-learnings rules.
-- `tote-docs/LOG.md` - the running session log.
+- `tote-docs/LOG.md` - the running session log (sessions 1-12 logged).
+- `tote-docs/ops/WORK-PROGRESS.md` - the master work list with status block.
 - `tote-docs/planning/ROADMAP.md` - the phased plan.
 - `tote-docs/council-iter-1/REPORT.md` - the council findings.
+- `tote-docs/council-final/ELITE-COUNCIL-FINAL-GATE.md` - the final-gate sign-off.
