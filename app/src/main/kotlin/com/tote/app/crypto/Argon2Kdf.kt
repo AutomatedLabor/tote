@@ -121,7 +121,7 @@ object Argon2Kdf {
             password.size,
             salt,
             opsLimit,
-            NativeLong.valueOf(memLimit),
+            NativeLong(memLimit),
             PwHash.Alg.PWHASH_ALG_ARGON2ID13,
         )
         if (!ok) {
