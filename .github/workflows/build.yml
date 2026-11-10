@@ -1,24 +1,23 @@
-# Tote - Build & Test
+# Tote — Build & Release Pipeline (Phase 12)
 #
-# Phase 1 (planning): placeholder. Will be replaced with the real Android
-# Gradle build once the app/ module exists.
+# Compiles the Android app, runs unit tests, signs the APK with the release
+# keystore, verifies with apksigner, and attaches to GitHub Releases on tag.
 #
-# Per build-learnings headline lesson #16: when releases exist, the build
-# MUST produce a v1+v2+v3-signed APK verified by `apksigner verify
-# --print-certs --verbose`, NOT `keytool -printcert -jarfile` (which is
-# v1-only and false-negatives v2/v3-only APKs).
+# Per build-learnings iron rule #17 / headline lesson #16:
+#   Use `apksigner verify --print-certs --verbose`, NOT `keytool -printcert -jarfile`.
 #
-# Per build-learnings headline lesson #4: green CI != working app. The build
-# also needs a wiring test with production defaults.
+# Per build-learnings iron rule #4: green CI != working app. Tests validate
+# the function; they don't validate the wiring.
 #
-# Per build-learnings iron rule #2: no secrets in the workflow file. Signing
-# keys are passed via ${{ secrets.* }} references.
+# Per build-learnings iron rule #2: no secrets in this file. All secrets come
+# from GitHub Actions secrets (TOTE_KEYSTORE_BASE64, etc.).
 
 name: build
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -26,95 +25,143 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
+  # Guard: if app/ exists, codeql + osv-scanner must be in workflows/ (not parked)
   assert-no-app-without-scanners:
-    name: "Guard: app/ requires codeql + osv-scanner active"
+    name: "Guard: scanners active"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
-
-      - name: "If app/ exists, codeql + osv-scanner must be in workflows/ (not workflows-pending/)"
+      - name: "Check scanners are active when app/ exists"
         run: |
           set -eu
           if [ -d "app" ]; then
-            echo "app/ module detected — scanners MUST be active."
             if [ -f ".github/workflows-pending/codeql.yml" ]; then
-              echo "::error::app/ exists but codeql.yml is still in workflows-pending/. Run: git mv .github/workflows-pending/codeql.yml .github/workflows/codeql.yml"
+              echo "::error::app/ exists but codeql.yml is still parked"
               exit 1
             fi
             if [ -f ".github/workflows-pending/osv-scanner.yml" ]; then
-              echo "::error::app/ exists but osv-scanner.yml is still in workflows-pending/. Run: git mv .github/workflows-pending/osv-scanner.yml .github/workflows/osv-scanner.yml"
+              echo "::error::app/ exists but osv-scanner.yml is still parked"
               exit 1
             fi
-            echo "OK: app/ exists and both scanners are active."
+            echo "OK: scanners are active"
           else
-            echo "No app/ module yet — scanners correctly parked."
+            echo "No app/ module — scanners correctly parked"
           fi
 
-  placeholder:
-    name: "Phase 1 placeholder - no app code yet"
+  build-android:
+    name: "Build Android APK"
     runs-on: ubuntu-latest
     needs: assert-no-app-without-scanners
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: "Check repo state"
-        run: |
-          echo "Tote is in PLANNING phase. No app/ module exists yet."
-          echo "Once Phase 1 begins, this workflow will:"
-          echo "  1. Set up JDK 17 + Android SDK."
-          echo "  2. Cache Gradle dependencies (with Aliyun mirror first, per threshold LEARNINGS)."
-          echo "  3. Run: ./gradlew :app:assembleRelease"
-          echo "  4. Sign the APK with v1+v2+v3 (per build-learnings headline lesson #16)."
-          echo "  5. Verify with apksigner verify --print-certs --verbose."
-          echo "  6. Upload the APK + .sha256 sidecar to GitHub Releases (on tag)."
-          echo ""
-          echo "For now, this workflow just confirms the repo is reachable."
-          exit 0
+      - name: "Set up JDK 17"
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-  # When Phase 1 starts, replace the placeholder above with:
-  #
-  # build-android:
-  #   name: "Build Android APK (release)"
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: "Set up JDK 17"
-  #       uses: actions/setup-java@v4
-  #       with:
-  #         distribution: temurin
-  #         java-version: '17'
-  #     - name: "Set up Android SDK"
-  #       uses: android-actions/setup-android@v3
-  #     - name: "Cache Gradle"
-  #       uses: actions/cache@v4
-  #       with:
-  #         path: |
-  #           ~/.gradle/caches
-  #           ~/.gradle/wrapper
-  #         key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-  #     - name: "Build release APK"
-  #       env:
-  #         TOTE_KEYSTORE_FILE: ${{ secrets.TOTE_KEYSTORE_FILE }}
-  #         TOTE_KEYSTORE_PASSWORD: ${{ secrets.TOTE_KEYSTORE_PASSWORD }}
-  #         TOTE_KEY_ALIAS: ${{ secrets.TOTE_KEY_ALIAS }}
-  #         TOTE_KEY_PASSWORD: ${{ secrets.TOTE_KEY_PASSWORD }}
-  #       run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
-  #     - name: "Verify APK signature (apksigner, NOT keytool)"
-  #       run: |
-  #         APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
-  #         apksigner verify --print-certs --verbose "$APK"
-  #     - name: "Generate .sha256 sidecar"
-  #       run: |
-  #         APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
-  #         sha256sum "$APK" > "$APK.sha256"
-  #     - name: "Upload APK artifact"
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: tote-apk
-  #         path: app/build/outputs/apk/release/*.apk
-  #         if-no-files-found: error
+      - name: "Set up Android SDK"
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'tools platform-tools build-tools;34.0.0 platforms;android-34'
+
+      - name: "Setup Gradle"
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: "Gradle wrapper validation"
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: "Build debug APK (smoke test)"
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: "Run unit tests"
+        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
+
+      - name: "Publish test results"
+        if: always()
+        uses: mikepenz/action-junit-report@v4
+        with:
+          report_paths: 'app/build/test-results/**/*.xml'
+          require_tests: true
+
+      # === Release build (only on main push or tags) ===
+      - name: "Decode release keystore"
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        run: |
+          echo "${{ secrets.TOTE_KEYSTORE_BASE64 }}" | base64 -d > $RUNNER_TEMP/tote-release.keystore
+
+      - name: "Build release APK"
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          TOTE_KEYSTORE_BASE64: ${{ secrets.TOTE_KEYSTORE_BASE64 }}
+          TOTE_KEYSTORE_PASSWORD: ${{ secrets.TOTE_KEYSTORE_PASSWORD }}
+          TOTE_KEY_ALIAS: ${{ secrets.TOTE_KEY_ALIAS }}
+          TOTE_KEY_PASSWORD: ${{ secrets.TOTE_KEY_PASSWORD }}
+        run: ./gradlew :app:assembleRelease --no-daemon --stacktrace
+
+      - name: "Verify APK signature (apksigner, NOT keytool)"
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        run: |
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "APK: $APK"
+          $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs --verbose "$APK"
+
+          # Verify cert SHA-256 matches the expected release key
+          CERT_SHA256=$(apksigner verify --print-certs "$APK" 2>&1 | grep "SHA-256" | head -1 | sed 's/.*SHA-256: //' | tr -d ' ')
+          echo "Cert SHA-256: $CERT_SHA256"
+          EXPECTED="df96cae5c963cef4b2adccd6ccf3a76113a0386e2376232f3dc758374acf4196"
+          if [ "${CERT_SHA256,,}" != "$EXPECTED" ]; then
+            echo "::error::Cert SHA-256 mismatch! Got $CERT_SHA256, expected $EXPECTED"
+            exit 1
+          fi
+          echo "Cert verification: OK"
+
+      - name: "Generate .sha256 sidecar"
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        run: |
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          sha256sum "$APK" > "$APK.sha256"
+          echo "SHA-256: $(cat "$APK.sha256")"
+
+      - name: "Attest build provenance (SLSA)"
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/attest-build-provenance@v1
+        with:
+          subject-path: 'app/build/outputs/apk/release/*.apk'
+
+      - name: "Upload APK artifact"
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tote-apk
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/*.apk.sha256
+            app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: "Publish to GitHub Releases (on tag)"
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/apk/release/*.apk.sha256
+          generate_release_notes: true
+          draft: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
