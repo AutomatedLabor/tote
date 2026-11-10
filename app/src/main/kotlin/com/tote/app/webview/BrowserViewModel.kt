@@ -202,8 +202,94 @@ class BrowserViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Poll the relay inbox and apply any incoming session blobs.
+     *
+     * Called on-demand (e.g., on app start or a "Check for sessions" button).
+     * For each envelope: download → apply → ack (DELETE).
+     *
+     * @return Number of cookies successfully imported.
+     */
+    fun checkForIncomingSessions() {
+        try {
+            val context = appContext ?: run {
+                Log.e(TAG, "checkForIncomingSessions: no app context")
+                _lastReceiveStatus.value = "ERROR: no app context"
+                return
+            }
+            val app = context as? com.tote.app.ToteApplication ?: run {
+                Log.e(TAG, "checkForIncomingSessions: context is not ToteApplication")
+                _lastReceiveStatus.value = "ERROR: bad application context"
+                return
+            }
+
+            val identity = app.identityStore.getOrCreateIdentity()
+            val epochState = app.identityStore.getOrCreateEpochState(identity)
+
+            val relayConfig = com.tote.app.relay.RelayConfig(
+                baseUrl = "https://relay.tote.app/v1",
+                baseUrlWs = "wss://relay.tote.app/v1",
+                localDeviceId = identity.ed25519Pub,
+            )
+            val service = com.tote.app.session.SessionTransferService(
+                context = context,
+                relayConfig = relayConfig,
+                identity = identity,
+                epochState = epochState,
+            )
+
+            viewModelScope.launch {
+                _lastReceiveStatus.value = "CHECKING: polling inbox…"
+                val inbox = service.pollInbox()
+                Log.i(TAG, "Inbox: ${inbox.size} envelopes")
+                if (inbox.isEmpty()) {
+                    _lastReceiveStatus.value = "NO_INCOMING: inbox is empty"
+                    return@launch
+                }
+
+                var totalCookies = 0
+                var appliedCount = 0
+                for (entry in inbox) {
+                    val blob = service.downloadEnvelope(entry.id)
+                    if (blob == null) {
+                        Log.w(TAG, "Failed to download envelope ${entry.id}")
+                        continue
+                    }
+                    // For the alpha we don't have a peer pub registry, so we
+                    // verify against the sender pubkey embedded in the blob header
+                    // (the blob layout puts senderDeviceId at offset 21..37).
+                    // TODO: look up sender pub from paired-device registry once
+                    // the pairing flow persists it. For now we skip signature
+                    // verification (SessionBlob.decode will still fail AEAD auth
+                    // if the key is wrong, but signature check needs the pub).
+                    val senderPub = blob.copyOfRange(21, 37).let { device16 ->
+                        // We stored a 16-byte device ID in the header — we need
+                        // the full 32-byte pubkey to verify. For the alpha, this
+                        // means we can't verify the signature, so we pass a
+                        // 32-byte zero pubkey and rely on AEAD-only authentication.
+                        ByteArray(32)
+                    }
+                    val count = service.applyIncoming(blob, senderPub)
+                    if (count > 0) {
+                        totalCookies += count
+                        appliedCount++
+                        service.ackEnvelope(entry.id)
+                        Log.i(TAG, "Applied envelope ${entry.id}: $count cookies")
+                    }
+                }
+                _lastReceiveStatus.value = "APPLIED: $appliedCount envelopes, $totalCookies cookies"
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "checkForIncomingSessions failed", t)
+            _lastReceiveStatus.value = "CHECK FAILED: ${t.message}"
+        }
+    }
+
     private val _lastSendStatus = MutableStateFlow<String?>(null)
     val lastSendStatus: StateFlow<String?> = _lastSendStatus.asStateFlow()
+
+    private val _lastReceiveStatus = MutableStateFlow<String?>(null)
+    val lastReceiveStatus: StateFlow<String?> = _lastReceiveStatus.asStateFlow()
 
     private fun normalizeUrl(url: String): String {
         val trimmed = url.trim()
