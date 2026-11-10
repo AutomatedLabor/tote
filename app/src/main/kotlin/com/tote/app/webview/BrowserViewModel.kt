@@ -1,7 +1,6 @@
 package com.tote.app.webview
 
 import android.content.Context
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
