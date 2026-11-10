@@ -19,13 +19,28 @@
 /app/src/main/jniLibs/
 
 # Secrets (per build-learnings iron rule #2)
+# Expanded per iter-2 security audit (agent-777553f2 P0-4):
 /tmp/.pat
 .pat
 .env
 .env.local
 secrets/
+
+# Keystores / signing keys (all variants)
 *.keystore
+*.jks
+*.p12
+*.pfx
+**/keystore.properties
+_keystore/
+/keystore/*.keystore
+/keystore/keystore.properties
 !keystore/.gitkeep
+
+# Android / Play service account files
+google-services.json
+play-account.json
+**/service-account-*.json
 
 # Editor
 .vscode/

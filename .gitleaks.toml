@@ -3,22 +3,116 @@ title = "Tote gitleaks config"
 [extend]
 useDefault = true
 
-# Block the literal GitHub PAT pattern and any GitHub PAT from being committed.
+# Expanded per iter-2 build engineer audit (agent-ac56256c F-03, F-04):
+# Covers all GitHub token prefixes, AWS, Stripe, Slack, PEM keys, Fly.io, Render,
+# plus Tote-specific patterns.
+
+# === GitHub tokens (all variants) ===
 [[rules]]
-id = "github-pat-tote-blocklist"
-description = "Block any GitHub PAT from being committed"
+id = "github-classic-pat"
+description = "Block GitHub classic PAT (ghp_ prefix)"
 regex = '''ghp_[A-Za-z0-9]{36}'''
 tags = ["key", "github", "pat"]
 
-# Block Vercel tokens (vcp_ prefix).
 [[rules]]
-id = "vercel-token-tote-blocklist"
-description = "Block any Vercel token from being committed"
+id = "github-fine-grained-pat"
+description = "Block GitHub fine-grained PAT (github_pat_ prefix)"
+regex = '''github_pat_[A-Za-z0-9_]{82}'''
+tags = ["key", "github", "pat"]
+
+[[rules]]
+id = "github-oauth-token"
+description = "Block GitHub OAuth token (gho_ prefix)"
+regex = '''gho_[A-Za-z0-9]{36}'''
+tags = ["key", "github", "oauth"]
+
+[[rules]]
+id = "github-app-token"
+description = "Block GitHub app token (ghs_ prefix)"
+regex = '''ghs_[A-Za-z0-9]{36}'''
+tags = ["key", "github", "app"]
+
+[[rules]]
+id = "github-refresh-token"
+description = "Block GitHub refresh token (ghr_ prefix)"
+regex = '''ghr_[A-Za-z0-9]{76}'''
+tags = ["key", "github", "refresh"]
+
+[[rules]]
+id = "github-user-token"
+description = "Block GitHub user-to-server token (ghu_ prefix)"
+regex = '''ghu_[A-Za-z0-9]{36}'''
+tags = ["key", "github", "user"]
+
+# === Vercel tokens ===
+[[rules]]
+id = "vercel-token"
+description = "Block Vercel token (vcp_ prefix)"
 regex = '''vcp_[A-Za-z0-9_]+'''
 tags = ["key", "vercel", "token"]
 
-# Allow this gitleaks config itself to mention the regex patterns as strings.
-# Note: gitleaks v8.18+ uses [allowlist] (single map), not [[allowlist]] (array of tables).
+# === AWS credentials ===
+[[rules]]
+id = "aws-access-key-id"
+description = "Block AWS Access Key ID (AKIA prefix)"
+regex = '''AKIA[0-9A-Z]{16}'''
+tags = ["key", "aws"]
+
+[[rules]]
+id = "aws-secret-key"
+description = "Block AWS Secret Access Key assignment"
+regex = '''(?i)aws_secret_access_key["'\s]*[:=]\s*["']?[A-Za-z0-9/+=]{40}'''
+tags = ["key", "aws", "secret"]
+
+# === Stripe ===
+[[rules]]
+id = "stripe-secret-key"
+description = "Block Stripe secret key (sk_live_ prefix)"
+regex = '''sk_live_[A-Za-z0-9]{24,}'''
+tags = ["key", "stripe"]
+
+[[rules]]
+id = "stripe-restricted-key"
+description = "Block Stripe restricted key (rk_live_ prefix)"
+regex = '''rk_live_[A-Za-z0-9]{24,}'''
+tags = ["key", "stripe"]
+
+# === Slack ===
+[[rules]]
+id = "slack-token"
+description = "Block Slack token (xox[bpras] prefix)"
+regex = '''xox[bpras]-[A-Za-z0-9-]+'''
+tags = ["key", "slack"]
+
+# === PEM private keys ===
+[[rules]]
+id = "pem-private-key"
+description = "Block PEM private key blocks"
+regex = '''-----BEGIN[A-Z\s]*PRIVATE KEY-----'''
+tags = ["key", "pem", "private"]
+
+# === Fly.io ===
+[[rules]]
+id = "flyio-token"
+description = "Block Fly.io token (FlyV1 prefix)"
+regex = '''FlyV1\s+[A-Za-z0-9_-]+'''
+tags = ["key", "flyio"]
+
+# === Render ===
+[[rules]]
+id = "render-api-key"
+description = "Block Render API key (rnd_ prefix)"
+regex = '''rnd_[A-Za-z0-9_-]+'''
+tags = ["key", "render"]
+
+# === Tote-specific patterns ===
+[[rules]]
+id = "tote-secret-assignment"
+description = "Block Tote-specific secret assignments (tote_secret, tote_key, tote_keystore, etc.)"
+regex = '''(?i)tote[_-]?(secret|key|keystore|nsec|vault|pairing)["'\s]*[:=]\s*["']?[A-Fa-f0-9]{64}'''
+tags = ["key", "tote"]
+
+# === Allowlist (gitleaks v8.18+ uses [allowlist] single map, not [[allowlist]]) ===
 [allowlist]
 description = "Allow the gitleaks config and docs to mention regex patterns as strings"
 paths = [
@@ -27,4 +121,5 @@ paths = [
   '''SECURITY\.md$''',
   '''CHANGELOG\.md$''',
   '''README\.md$''',
+  '''docs/.*\.md$''',
 ]
