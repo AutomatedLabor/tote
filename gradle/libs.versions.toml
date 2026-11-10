@@ -19,6 +19,7 @@ kotlinxCoroutines = "1.8.1"
 truth = "1.4.2"
 junit = "4.13.2"
 okhttp = "4.12.0"
+zxing = "3.5.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
