@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.tote.app.crypto.IdentityStore
 import com.tote.app.crypto.LazysodiumBootstrap
 import com.tote.app.profile.ProfileRegistry
 import com.tote.app.webview.ToteMemoryObserver
@@ -16,7 +17,10 @@ import com.tote.app.webview.ToteMemoryObserver
  *    unusable, so we let it throw (process will crash with a clear stack trace).
  * 2. **ProfileRegistry** — ensures the default "Personal" profile exists before
  *    any Activity tries to use it.
- * 3. **ToteMemoryObserver** — wires [ProcessLifecycleOwner] to a memory-pressure
+ * 3. **IdentityStore** — loads (or generates) the local device identity + epoch
+ *    state. Exposed as a singleton so BrowserViewModel can construct a
+ *    SessionTransferService for the "send session" verb.
+ * 4. **ToteMemoryObserver** — wires [ProcessLifecycleOwner] to a memory-pressure
  *    listener that triggers WebViewPool LRU eviction on TRIM_MEMORY events.
  *
  * Per ADR-007: this is the only place that holds app-wide singletons. Activities
@@ -28,6 +32,9 @@ class ToteApplication : Application() {
 
     /** App-wide singleton, lazily initialized on first access. */
     val profileRegistry: ProfileRegistry by lazy { ProfileRegistry.getInstance(this) }
+
+    /** Loads/generates the local device identity + epoch state, persisted. */
+    val identityStore: IdentityStore by lazy { IdentityStore(this) }
 
     override fun onCreate() {
         super.onCreate()
@@ -52,7 +59,16 @@ class ToteApplication : Application() {
             Log.e(TAG, "ProfileRegistry init FAILED", t)
         }
 
-        // 3. Wire memory-pressure observer (for WebViewPool LRU eviction).
+        // 3. Load (or generate) the device identity + epoch state.
+        try {
+            val identity = identityStore.getOrCreateIdentity()
+            identityStore.getOrCreateEpochState(identity)
+            Log.i(TAG, "IdentityStore initialized ✓")
+        } catch (t: Throwable) {
+            Log.e(TAG, "IdentityStore init FAILED — send/receive will not work", t)
+        }
+
+        // 4. Wire memory-pressure observer (for WebViewPool LRU eviction).
         try {
             ToteMemoryObserver.install(this)
             Log.i(TAG, "Memory observer installed ✓")

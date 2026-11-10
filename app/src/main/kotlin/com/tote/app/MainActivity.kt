@@ -24,6 +24,7 @@ class MainActivity : ComponentActivity() {
 
         // Wire the app-wide ProfileRegistry into the ViewModel.
         viewModel.profileRegistry = app.profileRegistry
+        viewModel.appContext = applicationContext
 
         // Register this session's WebViewPool with the memory observer so
         // ProcessLifecycle gets routed to its onAppBackground().

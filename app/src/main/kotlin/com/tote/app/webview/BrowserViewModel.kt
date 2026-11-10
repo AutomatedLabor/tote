@@ -46,6 +46,9 @@ class BrowserViewModel : ViewModel() {
     /** App-wide ProfileRegistry, set by MainActivity from ToteApplication. */
     var profileRegistry: ProfileRegistry? = null
 
+    /** Application context, set by MainActivity. Used to reach ToteApplication singletons. */
+    var appContext: Context? = null
+
     private val _activeUrl = MutableStateFlow("about:blank")
     val activeUrl: StateFlow<String> = _activeUrl.asStateFlow()
 
@@ -126,27 +129,76 @@ class BrowserViewModel : ViewModel() {
     /**
      * Send the current profile's session to a paired device via the relay.
      *
-     * Bootstraps a SessionTransferService on demand using the local device's
-     * identity + epoch state. The relay URL is hardcoded for the alpha
-     * (will be configurable in Settings once that screen is built).
+     * Bootstraps a [SessionTransferService] on demand using the local device's
+     * identity + epoch state (loaded from [IdentityStore] on ToteApplication).
      *
      * @param recipientDeviceIdHex The recipient's Ed25519 pubkey (64 hex chars)
+     * @param profileId The Tote profile ID to snapshot (default "default")
      */
-    /**
-     * Send the current profile's session to a paired device via the relay.
-     *
-     * For the alpha, we just log the intent. The actual transfer requires
-     * the local device identity + epoch state, which need to be loaded
-     * from AndroidKeyStore-encrypted storage (not yet wired to UI).
-     *
-     * @param recipientDeviceIdHex The recipient's Ed25519 pubkey (64 hex chars)
-     */
-    fun sendSessionToPairedDevice(recipientDeviceIdHex: String) {
-        // For the alpha, we just log the intent. The actual transfer requires
-        // the local device identity + epoch state, which need to be loaded
-        // from AndroidKeyStore-encrypted storage (not yet wired to UI).
-        Log.i(TAG, "sendSessionToPairedDevice: recipient=$recipientDeviceIdHex (NOT YET WIRED — needs identity bootstrap)")
-        _lastSendStatus.value = "NOT_YET_WIRED: needs identity + epoch state bootstrap from AndroidKeyStore"
+    fun sendSessionToPairedDevice(recipientDeviceIdHex: String, profileId: String = "default") {
+        try {
+            val recipientBytes = parseHex(recipientDeviceIdHex)
+            require(recipientBytes.size == 32) { "Recipient device ID must be 32 bytes (64 hex chars)" }
+
+            // Get the app singletons.
+            val context = appContext ?: run {
+                Log.e(TAG, "sendSessionToPairedDevice: no app context")
+                _lastSendStatus.value = "ERROR: no app context"
+                return
+            }
+            val app = context as? com.tote.app.ToteApplication ?: run {
+                Log.e(TAG, "sendSessionToPairedDevice: context is not ToteApplication")
+                _lastSendStatus.value = "ERROR: bad application context"
+                return
+            }
+
+            val identity = app.identityStore.getOrCreateIdentity()
+            val epochState = app.identityStore.getOrCreateEpochState(identity)
+
+            val relayConfig = com.tote.app.relay.RelayConfig(
+                baseUrl = "https://relay.tote.app/v1",  // TODO: configurable in Settings
+                baseUrlWs = "wss://relay.tote.app/v1",
+                localDeviceId = identity.ed25519Pub,
+            )
+            val service = com.tote.app.session.SessionTransferService(
+                context = context,
+                relayConfig = relayConfig,
+                identity = identity,
+                epochState = epochState,
+            )
+
+            // Launch the send in a coroutine (fire-and-forget; caller watches lastSendStatus).
+            viewModelScope.launch {
+                _lastSendStatus.value = "SENDING: snapshotting + uploading…"
+                val result = service.sendSession(
+                    profileId = profileId,
+                    profile = null,  // TODO: resolve the AndroidX Profile for profileId
+                    recipientDeviceId = recipientBytes,
+                    sequence = System.currentTimeMillis() / 1000,  // monotonic-ish for alpha
+                )
+                _lastSendStatus.value = if (result.success) {
+                    "SENT: ${result.cookieCount} cookies, ${result.blobSize} bytes"
+                } else {
+                    "SEND FAILED: ${result.error}"
+                }
+                Log.i(TAG, "sendSession result: ${result.success} (${result.cookieCount} cookies)")
+            }
+        } catch (t: Throwable) {
+            Log.e(TAG, "sendSessionToPairedDevice failed", t)
+            _lastSendStatus.value = "SEND FAILED: ${t.message}"
+        }
+    }
+
+    /** Parse a 64-char hex string into 32 bytes. */
+    private fun parseHex(hex: String): ByteArray {
+        val clean = hex.trim().replace(" ", "").replace(":", "").lowercase()
+        require(clean.length == 64) { "Expected 64 hex chars, got ${clean.length}" }
+        return ByteArray(32).also { out ->
+            for (i in 0 until 32) {
+                out[i] = ((Character.digit(clean[i * 2], 16) shl 4) or
+                    Character.digit(clean[i * 2 + 1], 16)).toByte()
+            }
+        }
     }
 
     private val _lastSendStatus = MutableStateFlow<String?>(null)
