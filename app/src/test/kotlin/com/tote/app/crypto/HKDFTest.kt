@@ -18,7 +18,7 @@ class HKDFTest {
     private val tc1_info = "f0f1f2f3f4f5f6f7f8f9".hexToBytes()
     private val tc1_prk = """
         077709362c2e32df0ddc3f0dc47bba63
-        90b6c73bb50f9c3122ec844ad7c2b3e
+        90b6c73bb50f9c3122ec844ad7c2b3e5
     """.trimIndent().replace(" ", "").replace("\n", "").hexToBytes()
     private val tc1_okm = """
         3cb25f25faacd57a90434f64d0362f2a
