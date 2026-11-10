@@ -24,10 +24,7 @@ class Argon2KdfTest {
     @Test
     fun `derive_with_same_password_salt_and_params_returns_same_output`() {
         val password = "tote-recovery-entropy-32-bytes!".toByteArray()
-        val salt = ByteArray(16).apply {
-            // Fixed salt (not zero) for test reproducibility
-            for (i in indices) salt[i] = (i + 1).toByte()
-        }
+        val salt = ByteArray(16) { (it + 1).toByte() }  // Fixed salt for test reproducibility
         val out1 = Argon2Kdf.derive(
             password = password,
             salt = salt,
