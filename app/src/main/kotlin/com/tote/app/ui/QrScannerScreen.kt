@@ -57,6 +57,7 @@ import com.google.zxing.common.HybridBinarizer
  * @param onCancel Called when the user taps the back button
  */
 @androidx.annotation.OptIn(androidx.camera.core.ExperimentalGetImage::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QrScannerScreen(
     onQrScanned: (String) -> Unit,

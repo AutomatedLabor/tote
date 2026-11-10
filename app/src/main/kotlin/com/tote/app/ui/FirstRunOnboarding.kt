@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
  * 128 bits of SecureRandom entropy and stored (encrypted at rest by v1.0.0
  * AndroidKeyStore wrapping).
  */
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun FirstRunOnboardingScreen(
     onComplete: () -> Unit,

@@ -29,7 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 
 // Branded Tote orange / deep teal palette
 private val ToteOrange = Color(0xFFFF5722)
-private val ToteOrangeDark = Color(0xFFE64A19)
+private val ToteOrangeContainer = Color(0xFFE64A19)
 private val ToteTeal = Color(0xFF00695C)
 private val ToteTealLight = Color(0xFF4DB6AC)
 private val ToteError = Color(0xFFB00020)
@@ -46,7 +46,7 @@ private val ToteOnBackgroundDark = Color(0xFFFAFAFA)
 private val LightColors = lightColorScheme(
     primary = ToteOrange,
     onPrimary = Color.White,
-    primaryContainer = ToteOrangeDark,
+    primaryContainer = ToteOrangeContainer,
     onPrimaryContainer = Color.White,
     secondary = ToteTeal,
     onSecondary = Color.White,

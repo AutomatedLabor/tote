@@ -1,6 +1,7 @@
 package com.tote.app.ui
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -94,7 +95,7 @@ val ToteTypography = Typography(
  * Tote shape scale. Generous corner radii for the rounded, friendly feel
  * the brand targets (vs. sharp Material default 4dp).
  */
-val ToteShapes = androidx.compose.foundation.shape.Shapes(
+val ToteShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
     small = RoundedCornerShape(8.dp),
     medium = RoundedCornerShape(16.dp),
