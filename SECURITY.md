@@ -43,10 +43,8 @@ If you're reporting a vulnerability that requires us to forge TLS to "make a sit
 **Active CI scans (current):**
 - **gitleaks** scans every PR and push for leaked secrets. 16 rules covering GitHub PATs (all prefixes: `ghp_`, `github_pat_`, `gho_`, `ghs_`, `ghr_`, `ghu_`), AWS (`AKIA`), Stripe (`sk_live_`/`rk_live_`), Slack (`xox`), PEM private keys, Fly.io, Render, Vercel, and Tote-specific patterns. See `.gitleaks.toml`.
 - **markdown-check** lints and link-checks all markdown on PR/push.
-
-**Parked CI scans (activate when `app/` lands):**
-- **CodeQL** is in `.github/workflows-pending/codeql.yml` — NOT YET ACTIVE. It requires Kotlin/Java source to analyze. Activate via `git mv .github/workflows-pending/codeql.yml .github/workflows/codeql.yml` when `app/` module exists.
-- **OSV-Scanner** is in `.github/workflows-pending/osv-scanner.yml` — NOT YET ACTIVE. It requires a lockfile (`gradle.lockfile`). Activate via `git mv` when lockfile exists.
-- An `assert-no-app-without-scanners` guard in `build.yml` will fail the build if `app/` exists but either scanner is still parked.
+- **CodeQL** is active (`.github/workflows/codeql.yml`). Runs when Kotlin source + Gradle wrapper jar exist; gracefully skips (via `check-prerequisites` + `skip-notice` jobs) until prerequisites are met. Currently in skip mode (no `gradle-wrapper.jar`-based autobuild yet — will activate when the wrapper is committed).
+- **OSV-Scanner** is active (`.github/workflows/osv-scanner.yml`). Runs when a lockfile (`gradle.lockfile` or `package-lock.json`) exists; gracefully skips until then.
+- An `assert-no-app-without-scanners` guard in `build.yml` fails the build if `app/` exists but either scanner is still in `.github/workflows-pending/`. (Scanners were activated in commit `104cd44` when `app/` landed.)
 
 **Job D (security scan cron)** will run daily once Phase 1 ships, re-scanning full repo history and latest dependencies.
