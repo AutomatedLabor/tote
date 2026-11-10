@@ -23,7 +23,9 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write  # needed by softprops/action-gh-release to create releases
+  id-token: write   # needed by actions/attest-build-provenance for SLSA
+  actions: read     # needed by mikepenz/action-junit-report to create checks
 
 concurrency:
   group: build-${{ github.ref }}
