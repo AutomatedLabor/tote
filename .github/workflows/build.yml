@@ -71,8 +71,12 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: "Set up Android SDK"
-        uses: android-actions/setup-android@v3
+      # NOTE: android-actions/setup-android@v3 is NOT needed — ubuntu-latest runners
+      # have the Android SDK pre-installed at /usr/local/lib/android/sdk.
+      # The setup-android action fails with "Failed to find package 'tools'" on
+      # newer runners because the "tools" package was removed from the SDK.
+      - name: "Verify Android SDK is available"
+        run: echo "ANDROID_HOME=$ANDROID_HOME" && ls "$ANDROID_HOME/platforms/" 2>/dev/null || echo "No platforms listed"
 
       - name: "Setup Gradle"
         uses: gradle/actions/setup-gradle@v3
