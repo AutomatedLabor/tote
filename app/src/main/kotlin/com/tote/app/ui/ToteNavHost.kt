@@ -40,6 +40,17 @@ import java.security.SecureRandom
  *
  * Onboarding gate: if `tote_onboarding/complete` is false, the user is
  * routed to "onboarding" first. After completing, they're routed to "browser".
+ *
+ * QR scan → pairing flow:
+ * When the user scans a `tote://pair/<b64>` QR, the QrScannerScreen returns
+ * the decoded string. We pop the scanner off the back stack and route to
+ * the "receiver_pair" composable, which drives the [ReceiverPairingFlowDialog]
+ * (decode payload → ECDH → SAS verify → persist peer + pairingRoot).
+ *
+ * For passing the scanned QR string across the navigation boundary we use
+ * [androidx.lifecycle.SavedStateHandle] via the route's saved state — but for
+ * the alpha we stash it in a process-level holder so we don't have to deal
+ * with route argument encoding. v1.0.0 will use proper typed nav arguments.
  */
 @Composable
 fun ToteNavHost(
@@ -76,13 +87,50 @@ fun ToteNavHost(
         composable("qr_scanner") {
             QrScannerScreen(
                 onQrScanned = { qr ->
-                    Log.i("ToteNavHost", "Scanned QR: ${qr.take(60)}…")
-                    navController.popBackStack()
+                    // Stash the QR string in a process-level holder so the
+                    // receiver-pair composable can read it without us having
+                    // to encode/decode it through a nav argument.
+                    PendingScanHolder.scannedQr = qr
+                    navController.navigate("receiver_pair") {
+                        popUpTo("qr_scanner") { inclusive = true }
+                    }
                 },
                 onCancel = { navController.popBackStack() },
             )
         }
+        composable("receiver_pair") {
+            val qr = PendingScanHolder.scannedQr
+            if (qr == null) {
+                // Stale navigation — bail back to browser
+                LaunchedEffect(Unit) {
+                    navController.popBackStack("browser", inclusive = false)
+                }
+            } else {
+                ReceiverPairingFlowDialog(
+                    scannedQr = qr,
+                    onPairingComplete = { _, _ ->
+                        PendingScanHolder.scannedQr = null
+                        navController.popBackStack("browser", inclusive = false)
+                    },
+                    onDismiss = {
+                        PendingScanHolder.scannedQr = null
+                        navController.popBackStack("browser", inclusive = false)
+                    },
+                )
+            }
+        }
     }
+}
+
+/**
+ * Process-level holder for the most recently scanned pairing QR.
+ *
+ * Used to bridge the QrScannerScreen → ReceiverPairingFlowDialog navigation
+ * boundary. v1.0.0 will replace this with proper typed nav arguments.
+ */
+internal object PendingScanHolder {
+    @Volatile
+    var scannedQr: String? = null
 }
 
 /**

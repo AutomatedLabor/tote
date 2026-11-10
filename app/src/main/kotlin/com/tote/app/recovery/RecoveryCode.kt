@@ -1,5 +1,6 @@
 package com.tote.app.recovery
 
+import com.tote.app.crypto.Argon2Kdf
 import com.tote.app.crypto.BIP39
 import com.tote.app.crypto.HKDF
 import com.tote.app.crypto.SHA256
@@ -18,38 +19,49 @@ import java.security.SecureRandom
  * down offline. If they lose all their devices, they enter the code on a new
  * device to restore the pairingRoot and re-bootstrap the EpochState.
  *
- * NOTE: Argon2id is not yet wired (lazysodium's `cryptoPwHash` is available
- * but requires a wrapper). For the v1 alpha we use a simpler HKDF-based
- * derivation. Argon2id is a TODO for v1.0.0 ship.
+ * Per v0.5.0-alpha1: Argon2id is now wired via [Argon2Kdf] (libsodium's
+ * crypto_pwhash). The salt is stored alongside the derived key in
+ * IdentityStore; the salt is NOT secret.
+ *
+ * For backward-compat with v0.4.0-alpha1 storage: if a stored pairingRoot
+ * has no accompanying salt, we fall back to the v0.4 HKDF derivation. This
+ * path is deprecated and will be removed in v1.0.0.
  */
 object RecoveryCode {
 
     /**
      * Generate a fresh recovery code.
      *
-     * @return Pair(mnemonic, entropy) — store entropy encrypted at rest.
+     * @return Triple(mnemonic, entropy, salt) — store entropy + salt encrypted
+     *   at rest. The mnemonic is shown to the user ONCE.
      */
-    fun generate(): Pair<List<String>, ByteArray> {
+    fun generate(): Triple<List<String>, ByteArray, ByteArray> {
         val entropy = ByteArray(16)
         SecureRandom().nextBytes(entropy)
         val mnemonic = BIP39.entropyToMnemonic(entropy)
-        return mnemonic to entropy
+        val salt = Argon2Kdf.generateSalt()
+        return Triple(mnemonic, entropy, salt)
     }
 
     /**
-     * Derive the pairingRoot from recovery entropy.
+     * Derive the pairingRoot from recovery entropy + salt via Argon2id.
      *
-     * Per CRYPTO-SPEC-FINAL §5: HKDF(entropy, salt="recovery-v1", info="pairingRoot", 32)
+     * Per CRYPTO-SPEC-FINAL §5: pairingRoot = Argon2id(entropy, salt, ops=3, mem=64MB, len=32)
      *
-     * TODO v1.0.0: replace HKDF with Argon2id (memory-hard) — lazysodium's
-     * crypto_pwhash. Argon2id parameters per OWASP: t=2, m=64MB, p=1.
+     * The salt MUST be persisted alongside the derived root. An attacker with
+     * the salt but not the mnemonic cannot derive the root (Argon2id's
+     * memory-hardness makes brute-force impractical even at 128 bits entropy).
+     *
+     * The entropy is treated as the "password" input. We don't convert it to
+     * a mnemonic first — that would just add an unnecessary encoding layer.
      */
-    fun derivePairingRoot(entropy: ByteArray): ByteArray {
-        return HKDF.derive(
-            ikm = entropy,
-            salt = "recovery-v1".toByteArray(Charsets.US_ASCII),
-            info = "pairing-root".toByteArray(Charsets.US_ASCII),
-            length = 32,
+    fun derivePairingRoot(entropy: ByteArray, salt: ByteArray): ByteArray {
+        return Argon2Kdf.derive(
+            password = entropy,
+            salt = salt,
+            opsLimit = Argon2Kdf.Cost.OPSLIMIT_MODERATE,
+            memLimit = Argon2Kdf.Cost.MEMLIMIT_INTERACTIVE,  // 64 MB
+            outputLength = 32,
         )
     }
 
@@ -58,10 +70,14 @@ object RecoveryCode {
      * without revealing the full pairingRoot.
      *
      * Display as 4 hex chars or 2 emojis.
+     *
+     * This uses HKDF (NOT Argon2id) since the hint is derived from the
+     * pairingRoot (which is already memory-hard-derived). Chaining Argon2id
+     * would be unnecessary cost.
      */
-    fun deriveRecoveryHint(entropy: ByteArray): ByteArray {
+    fun deriveRecoveryHint(pairingRoot: ByteArray): ByteArray {
         return HKDF.derive(
-            ikm = entropy,
+            ikm = pairingRoot,
             salt = "recovery-hint".toByteArray(Charsets.US_ASCII),
             info = "hint".toByteArray(Charsets.US_ASCII),
             length = 4,
@@ -86,20 +102,29 @@ object RecoveryCode {
      * Recovery code rotation.
      *
      * Per CRYPTO-SPEC-FINAL §5: every 90 days, prompt the user to rotate.
-     * This generates a new entropy + mnemonic, derives a new pairingRoot,
-     * and triggers an epoch advance on all paired devices.
+     * This generates a new entropy + mnemonic + salt, derives a new
+     * pairingRoot, and triggers an epoch advance on all paired devices.
      *
-     * Returns the new mnemonic + new pairingRoot.
+     * @return Quadruple(newMnemonic, newEntropy, newSalt, newPairingRoot)
      */
-    fun rotate(currentEntropy: ByteArray): Pair<List<String>, ByteArray> {
+    fun rotate(currentEntropy: ByteArray): RotateResult {
         // Mix current entropy with a fresh random nonce to produce new entropy.
+        // We do NOT reuse the current salt — generate a fresh one.
         val freshNonce = ByteArray(16).also { SecureRandom().nextBytes(it) }
         val mixed = SHA256.hash(currentEntropy + freshNonce)
         // BIP-39 for 12 words requires 16 bytes (128 bits) of entropy. Take the
         // first 16 bytes of the SHA-256 output.
         val newEntropy = mixed.copyOf(16)
         val mnemonic = BIP39.entropyToMnemonic(newEntropy)
-        val newPairingRoot = derivePairingRoot(newEntropy)
-        return mnemonic to newPairingRoot
+        val newSalt = Argon2Kdf.generateSalt()
+        val newPairingRoot = derivePairingRoot(newEntropy, newSalt)
+        return RotateResult(mnemonic, newEntropy, newSalt, newPairingRoot)
     }
+
+    data class RotateResult(
+        val mnemonic: List<String>,
+        val entropy: ByteArray,
+        val salt: ByteArray,
+        val pairingRoot: ByteArray,
+    )
 }

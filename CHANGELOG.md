@@ -8,12 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Pending (next batch)
-- Argon2id recovery code derivation (replaces HKDF for v1.0.0)
-- AndroidKeyStore AES-GCM wrapping for IdentityStore + PeerDeviceRegistry at-rest secrets
-- PixelCopy tab screenshots (replaces URL+scrollY-only state on LRU eviction)
-- Receiver-side QR scan → relay-mediated peer pub exchange (currently manual paste)
+- Receiver-side QR scan → relay-mediated peer pub exchange (currently scans QR but doesn't yet publish our pub over the relay — user must manually paste the sender's pub)
 - First-launch onboarding tour polish (animated illustrations)
 - Play Store submission (special-use FGS declaration already in manifest)
+- Robolectric integration tests for SharedPreferences-backed stores
+- APK size reduction (R8 / ProGuard enablement, R8 shrinkResources)
+
+## [v0.5.0-alpha1] - 2026-11-11
+
+### Added
+- **Argon2id for recovery code derivation** — [Argon2Kdf] wraps libsodium's `crypto_pwhash` (Argon2id algorithm). Parameters per OWASP 2023: t=3 ops, m=64 MiB, p=1. 10 unit tests covering round-trip, parameter sensitivity, salt uniqueness, mnemonic derivation, and a smoke test.
+- **AndroidKeyStore AES-GCM wrapping** — [KeystoreWrapper] generates a master AES-256 GCM key in the AndroidKeyStore (hardware-backed on TEE/StrongBox devices). [IdentityStore] and [PeerDeviceRegistry] now encrypt at-rest secrets via this wrapper. Falls back to plaintext if AndroidKeyStore unavailable (rare, broken TEE) with a warning log. 10 unit tests covering round-trip, wrong-key rejection, tamper detection, and large/empty inputs.
+- **Receiver-side pairing flow dialog** — [ReceiverPairingFlowDialog] decodes the scanned QR → computes ECDH + HKDF(pairingRoot) → shows the SAS verify dialog → on match, persists the peer + pairingRoot. State machine: COMPUTE → SHOW_SAS → DONE.
+- **QR scan wired into navigation** — `ToteNavHost` now routes the scanned QR string through a `PendingScanHolder` to the `ReceiverPairingFlowDialog` composable, instead of just logging it.
+- **PixelCopy tab screenshots** — `WebViewPool.WebViewEntry.checkpoint()` now captures a 256×256 screenshot via `PixelCopy.request()` on Android 8+ (with `View.draw()` fallback for older devices / non-attached WebViews). The screenshot is stored in `entry.screenshot` for use as a tab thumbnail.
+- **Recovery salt persistence** — `IdentityStore.saveRecoverySalt()` / `getRecoverySalt()` persist the Argon2id salt alongside the pairingRoot. The salt is non-secret (its purpose is rainbow-table defeat).
+- **IdentityStore nuke deletes AndroidKeyStore master key** — `zeroize()` now also calls `keystore.deleteMasterKey()` so previously-encrypted ciphertexts become unrecoverable.
+- **PeerDeviceRegistry plaintext-fallback heuristic** — if a stored blob starts with `'['` (JSON array byte), it's treated as plaintext from an older version. Otherwise, treated as encrypted.
+- **`peersToJson` / `peersFromJson` static methods** — extracted from [PeerDeviceRegistry] so the JSON round-trip is JVM-testable without a Context.
+- **Relay sender_id field** — Go relay's `/inbox/{id}` poll response now returns `{"id":"...","size":N,"received_at":N,"sender_id":"<hex>"}` matching the Android client's regex. The Android client uses `sender_id` to look up the sender's Ed25519 pubkey in the [PeerDeviceRegistry] for signature verification on incoming session blobs.
+
+### Changed
+- **RecoveryCode.derivePairingRoot** — now takes (entropy, salt) and uses Argon2id (was HKDF without salt). The salt is persisted via [IdentityStore.saveRecoverySalt].
+- **RecoveryCode.generate** — now returns `Triple(mnemonic, entropy, salt)` (was `Pair(mnemonic, entropy)`).
+- **RecoveryCode.rotate** — returns `RotateResult` data class with mnemonic + entropy + salt + pairingRoot (was `Pair`).
+- **RecoveryCode.deriveRecoveryHint** — now derives from pairingRoot (was from entropy). Chaining Argon2id twice would be wasteful; HKDF on the already-derived root is sufficient for a non-secret hint.
+- **RecoveryCodeTest** — updated to pass salt to derivePairingRoot + verify the new Triple return shape. Added tests for salt sensitivity + rotate mnemonic validity.
+
+### Fixed
+- **QR scanner just logged the scanned QR** — now actually drives the receiver-side pairing flow (decode payload → ECDH → SAS verify → persist peer + pairingRoot).
+- **Relay didn't expose sender_id** — Go relay now returns the sender's hex pubkey in the inbox poll response, so receivers can verify signatures on incoming session blobs.
 
 ## [v0.4.0-alpha1] - 2026-11-11
 

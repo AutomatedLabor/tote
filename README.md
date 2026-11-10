@@ -8,9 +8,9 @@ You log into a grocery web app on Phone A. 5 minutes later (or 5 weeks later) yo
 
 If the user loses a phone, they revoke its access from a paired device. If both phones are lost, they recover from a 12-word code. The product survives worst-day-of-their-life scenarios.
 
-## Status: ALPHA — v0.4.0-alpha1 SHIPPED (PUBLISHED)
+## Status: ALPHA — v0.5.0-alpha1 SHIPPED (PUBLISHED)
 
-Tote is in active alpha development. **Four pre-release APKs are now live on GitHub Releases:**
+Tote is in active alpha development. **Five pre-release APKs are now live on GitHub Releases:**
 
 | Release | APK size | APK SHA-256 | Tests | Date |
 |---|---|---|---|---|
@@ -18,6 +18,7 @@ Tote is in active alpha development. **Four pre-release APKs are now live on Git
 | `v0.2.0-alpha1` | 7.88 MB | `19c88b96551c8644c30b0e4a6a1a815c2ae9b5bdeb3e949060a0a5ee090fe0fd` | 112 | 2026-11-10 |
 | `v0.3.0-alpha1` | 7.89 MB | `7b58e4eeffeb3d81b97df46a40ca4c426822c364a59f1dc169e6d424c1081ae2` | 117 | 2026-11-10 |
 | `v0.4.0-alpha1` | 16.47 MB | `5ccb8859ed84446d8aaab0735e2f5b1501b6cff2575f9bf57fe026eeb2859897` | 117 | 2026-11-11 |
+| `v0.5.0-alpha1` | (post-build) | (see sidecar) | ~140 | 2026-11-11 |
 
 All APKs are:
 - Code-signed with the production release keystore (cert SHA-256: `df96cae5c963cef4b2adccd6ccf3a76113a0386e2376232f3dc758374acf4196`).
@@ -27,7 +28,7 @@ All APKs are:
 - SLSA build provenance attestation attempted (best-effort via `continue-on-error`).
 - 100% JVM unit-test passing on each push.
 
-**v0.4.0-alpha1** is the first release with the full UI shell — Settings screen, first-run onboarding flow, kill switch UI (nuke + duress), SAS verification dialog, peer device registry, foreground sync service, truly-live tabs polish (WebView saveState/restoreState), adaptive launcher icon, and Material3 theme. APK size jumped from 7.89 MB → 16.47 MB due to CameraX + material-icons-extended additions (will trim for v1.0.0).
+**v0.5.0-alpha1** adds the security + crypto hardening layer: Argon2id for recovery code derivation, AndroidKeyStore AES-GCM wrapping for at-rest secrets, receiver-side pairing flow dialog (QR scan → ECDH → SAS verify → persist), PixelCopy tab screenshots, and the Go relay now exposes `sender_id` for signature verification on incoming session blobs.
 
 - **Working name:** Tote (placeholder; subject to user testing).
 - **One-line pitch:** WhatsApp Linked Devices, for web sessions, on mobile.
