@@ -75,11 +75,12 @@ class SessionSnapshot(private val context: Context) {
         val plaintext = json.toByteArray(Charsets.UTF_8)
 
         // Sign and encrypt into a SessionBlob
-        val profileIdBytes = profileId.padEnd(16, 0).toByteArray(Charsets.US_ASCII).copyOf(16)
-        val senderDeviceId = identity.ed25519Pub.copyOf(16).let {
-            // Pad to 16 bytes if needed (Ed25519 pub is 32 bytes — use first 16 as device ID)
-            it
+        // Encode profileId as up to 16 ASCII bytes, right-padded with zeros.
+        val profileIdBytes = ByteArray(16).also { arr ->
+            val src = profileId.toByteArray(Charsets.US_ASCII)
+            System.arraycopy(src, 0, arr, 0, minOf(src.size, 16))
         }
+        val senderDeviceId = identity.ed25519Pub.copyOf(16)
 
         val blob = SessionBlob.encode(
             profileId = profileIdBytes,
