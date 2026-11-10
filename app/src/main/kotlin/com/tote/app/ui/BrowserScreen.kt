@@ -45,6 +45,7 @@ fun BrowserScreen(
     var urlText by remember { mutableStateOf("") }
     var showProfilePicker by remember { mutableStateOf(false) }
     var showSendSessionDialog by remember { mutableStateOf(false) }
+    var showPairingDialog by remember { mutableStateOf(false) }
     val activeUrl by viewModel.activeUrl.collectAsState()
     val activeProfileId by viewModel.activeProfileId.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -135,6 +136,14 @@ fun BrowserScreen(
             ) {
                 Icon(Icons.Default.Send, contentDescription = "Send session to paired device")
             }
+
+            // Pairing button (shows QR for the other device to scan)
+            IconButton(
+                onClick = { showPairingDialog = true },
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(Icons.Default.QrCode2, contentDescription = "Pair a device via QR")
+            }
         }
 
         // WebView area — uses the ViewModel's pool, NOT a fresh WebView each recompose.
@@ -200,6 +209,19 @@ fun BrowserScreen(
             onSend = { recipientHex ->
                 viewModel.sendSessionToPairedDevice(recipientHex)
                 showSendSessionDialog = false
+            }
+        )
+    }
+
+    // Pairing dialog (shows QR)
+    if (showPairingDialog) {
+        PairingDialog(
+            onDismiss = { showPairingDialog = false },
+            onPairingComplete = { pairingRoot ->
+                // Persist the new pairing root and re-derive epoch state.
+                val app = context.applicationContext as ToteApplication
+                app.identityStore.savePairingRoot(pairingRoot)
+                showPairingDialog = false
             }
         )
     }
