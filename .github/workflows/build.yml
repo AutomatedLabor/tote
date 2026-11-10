@@ -83,10 +83,6 @@ jobs:
         continue-on-error: true
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-          # Per build-learnings: wrapper-validation was disabled because the
-          # project ships a custom fat-jar (Python zipfile-merged from the
-          # Gradle 8.7 distribution). Re-enable when we ship a stock wrapper.
-          allow-checksums: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
 
       - name: "Build debug APK (smoke test)"
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace

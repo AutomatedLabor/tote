@@ -1,3 +1,5 @@
+import java.io.File
+import java.util.Base64
 import java.util.Properties
 
 plugins {
@@ -25,10 +27,10 @@ val ciKeyAlias = providers.environmentVariable("TOTE_KEY_ALIAS").orNull
 val ciKeyPassword = providers.environmentVariable("TOTE_KEY_PASSWORD").orNull
 
 // Decode the keystore only when all four CI env vars are present.
-val ciKeystoreFile: java.io.File? =
+val ciKeystoreFile: File? =
     if (ciKeystoreB64 != null && ciKeystorePassword != null && ciKeyAlias != null && ciKeyPassword != null) {
-        java.io.File.createTempFile("tote-release", ".keystore").apply {
-            writeBytes(java.util.Base64.getDecoder().decode(ciKeystoreB64))
+        File.createTempFile("tote-release", ".keystore").apply {
+            writeBytes(Base64.getDecoder().decode(ciKeystoreB64))
             deleteOnExit()
         }
     } else {
@@ -40,7 +42,7 @@ val localStorePassword = keystoreProperties.getProperty("storePassword")
 val localKeyAlias = keystoreProperties.getProperty("keyAlias")
 val localKeyPassword = keystoreProperties.getProperty("keyPassword")
 
-val releaseStoreFile: java.io.File? = ciKeystoreFile ?: localStoreFile?.let { rootProject.file(it) }
+val releaseStoreFile: File? = ciKeystoreFile ?: localStoreFile?.let { rootProject.file(it) }
 val releaseStorePassword: String? = ciKeystorePassword ?: localStorePassword
 val releaseKeyAlias: String? = ciKeyAlias ?: localKeyAlias
 val releaseKeyPassword: String? = ciKeyPassword ?: localKeyPassword
@@ -130,6 +132,7 @@ dependencies {
     implementation(libs.lazysodium.java)
     implementation(libs.jna)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.serialization.cbor)
     implementation(libs.kotlinx.coroutines.android)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
