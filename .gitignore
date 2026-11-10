@@ -50,3 +50,7 @@ play-account.json
 
 # OS
 Thumbs.db
+
+# Go relay build artifacts
+/relay/tote-relay
+/relay/relay.db
