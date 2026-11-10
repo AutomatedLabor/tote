@@ -90,8 +90,9 @@ object BIP39 {
         }
         // Reconstruct bits
         val totalBits = mnemonic.size * 11
-        val checksumBits = totalBits * 32 / 33
-        val entropyBits = totalBits - checksumBits
+        // Per BIP-39: entropy is 32/33 of total, checksum is 1/33 of total.
+        val entropyBits = totalBits * 32 / 33
+        val checksumBits = totalBits / 33
         require(entropyBits % 8 == 0) { "Entropy bits not aligned" }
         val entropyBytes = entropyBits / 8
 
@@ -117,18 +118,15 @@ object BIP39 {
         }
 
         // Verify checksum
-        val computedChecksum = SHA256.hash(entropy)[0]
+        val computedChecksumByte = SHA256.hash(entropy)[0]
         val expectedChecksumBits = entropyBits / 32
-        val expectedMask = ((0xFF shl (8 - expectedChecksumBits)) and 0xFF).toByte()
-        val actualBits = (computedChecksum.toInt() and expectedMask.toInt())
-        val expectedBits = if (expectedChecksumBits > 0) {
-            var v = 0
-            for (b in 0 until expectedChecksumBits) {
-                v = (v shl 1) or (if (bits[entropyBits + b]) 1 else 0)
+        for (b in 0 until expectedChecksumBits) {
+            val computedBit = (computedChecksumByte.toInt() shr (7 - b)) and 1
+            val expectedBit = if (bits[entropyBits + b]) 1 else 0
+            require(computedBit == expectedBit) {
+                "Checksum mismatch — typo in mnemonic"
             }
-            v
-        } else 0
-        require(actualBits == expectedBits) { "Checksum mismatch — typo in mnemonic" }
+        }
 
         return entropy
     }

@@ -1,6 +1,6 @@
 package com.tote.app.recovery
 
-import android.util.Log
+import java.util.logging.Logger
 import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicLong
 
@@ -33,9 +33,12 @@ import java.util.concurrent.atomic.AtomicLong
  * NOTE: This is a state-machine, not the actual implementation. The actual
  * data destruction is performed by [KillSwitchExecutor] which knows about
  * the WebView SQLite files, the AndroidKeyStore, etc.
+ *
+ * Uses java.util.logging.Logger instead of android.util.Log so the class
+ * is JVM-testable without Robolectric.
  */
 class KillSwitch {
-    private val TAG = "KillSwitch"
+    private val LOG = Logger.getLogger("KillSwitch")
 
     enum class Mode {
         /** No kill switch active. */
@@ -77,12 +80,12 @@ class KillSwitch {
     fun triggerNuke(now: Long = System.currentTimeMillis()): Long {
         val existing = nukeTriggeredAt.get()
         if (existing != 0L) {
-            Log.w(TAG, "Nuke already triggered at $existing — ignoring re-trigger")
+            LOG.warning("Nuke already triggered at $existing — ignoring re-trigger")
             return existing
         }
         nukeTriggeredAt.set(now)
         modeOrdinal.set(Mode.NUKE_PENDING.ordinal.toLong())
-        Log.w(TAG, "NUKE TRIGGERED at $now — 24h countdown starts. User can cancel.")
+        LOG.warning("NUKE TRIGGERED at $now — 24h countdown starts. User can cancel.")
         return now
     }
 
@@ -96,12 +99,12 @@ class KillSwitch {
         if (triggered == 0L) return false
         val elapsed = now - triggered
         if (elapsed > nukeCooldownMs) {
-            Log.w(TAG, "Cancel attempted but cooldown already elapsed (${elapsed}ms > $nukeCooldownMs ms)")
+            LOG.warning("Cancel attempted but cooldown already elapsed (${elapsed}ms > $nukeCooldownMs ms)")
             return false
         }
         nukeTriggeredAt.set(0L)
         modeOrdinal.set(Mode.IDLE.ordinal.toLong())
-        Log.i(TAG, "Nuke CANCELLED — no data destroyed")
+        LOG.info("Nuke CANCELLED — no data destroyed")
         return true
     }
 
@@ -116,7 +119,7 @@ class KillSwitch {
         val elapsed = now - triggered
         if (elapsed <= nukeCooldownMs) return false
         modeOrdinal.set(Mode.NUKE_EXECUTED.ordinal.toLong())
-        Log.e(TAG, "NUKE COOLDOWN ELAPSED — executing nuke NOW")
+        LOG.severe("NUKE COOLDOWN ELAPSED — executing nuke NOW")
         return true
     }
 
@@ -138,7 +141,7 @@ class KillSwitch {
         }
         if (diff != 0) return false
         modeOrdinal.set(Mode.DURESS_ACTIVATED.ordinal.toLong())
-        Log.w(TAG, "DURESS ACTIVATED — sensitive profiles will be zeroised")
+        LOG.warning("DURESS ACTIVATED — sensitive profiles will be zeroised")
         return true
     }
 

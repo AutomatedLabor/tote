@@ -94,9 +94,12 @@ object RecoveryCode {
     fun rotate(currentEntropy: ByteArray): Pair<List<String>, ByteArray> {
         // Mix current entropy with a fresh random nonce to produce new entropy.
         val freshNonce = ByteArray(16).also { SecureRandom().nextBytes(it) }
-        val mixedEntropy = SHA256.hash(currentEntropy + freshNonce)
-        val mnemonic = BIP39.entropyToMnemonic(mixedEntropy)
-        val newPairingRoot = derivePairingRoot(mixedEntropy)
+        val mixed = SHA256.hash(currentEntropy + freshNonce)
+        // BIP-39 for 12 words requires 16 bytes (128 bits) of entropy. Take the
+        // first 16 bytes of the SHA-256 output.
+        val newEntropy = mixed.copyOf(16)
+        val mnemonic = BIP39.entropyToMnemonic(newEntropy)
+        val newPairingRoot = derivePairingRoot(newEntropy)
         return mnemonic to newPairingRoot
     }
 }
