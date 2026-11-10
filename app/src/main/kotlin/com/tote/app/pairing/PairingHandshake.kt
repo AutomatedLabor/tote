@@ -32,8 +32,23 @@ data class PairingPayload(
      */
     fun toQrString(): String {
         val bytes = encode()
-        val b64 = android.util.Base64.encodeToString(bytes, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+        val b64 = base64UrlEncode(bytes)
         return "tote://pair/$b64"
+    }
+
+    /**
+     * Base64 URL-safe encoding without padding (uses java.util.Base64 so the
+     * class is JVM-testable without Robolectric).
+     */
+    private fun base64UrlEncode(bytes: ByteArray): String {
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+
+    /**
+     * Base64 URL-safe decoding (inverse of [base64UrlEncode]).
+     */
+    private fun base64UrlDecode(s: String): ByteArray {
+        return java.util.Base64.getUrlDecoder().decode(s)
     }
 
     /**
@@ -68,7 +83,7 @@ data class PairingPayload(
             val prefix = "tote://pair/"
             require(qr.startsWith(prefix)) { "Not a Tote pairing QR" }
             val b64 = qr.removePrefix(prefix)
-            val bytes = android.util.Base64.decode(b64, android.util.Base64.URL_SAFE or android.util.Base64.NO_WRAP or android.util.Base64.NO_PADDING)
+            val bytes = java.util.Base64.getUrlDecoder().decode(b64)
             return decode(bytes)
         }
 
