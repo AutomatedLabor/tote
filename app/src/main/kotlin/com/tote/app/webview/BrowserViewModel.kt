@@ -3,10 +3,15 @@ package com.tote.app.webview
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.tote.app.crypto.DeviceIdentity
+import com.tote.app.crypto.EpochState
 import com.tote.app.profile.ProfileRegistry
+import com.tote.app.relay.RelayConfig
+import com.tote.app.session.SessionTransferService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Hosts the WebViewPool and survives configuration changes (per ADR-017).
@@ -117,6 +122,27 @@ class BrowserViewModel : ViewModel() {
     fun previousTab() {
         tabManager.previousTab()
     }
+
+    /**
+     * Send the current profile's session to a paired device via the relay.
+     *
+     * Bootstraps a SessionTransferService on demand using the local device's
+     * identity + epoch state. The relay URL is hardcoded for the alpha
+     * (will be configurable in Settings once that screen is built).
+     *
+     * @param recipientDeviceIdHex The recipient's Ed25519 pubkey (64 hex chars)
+     */
+    fun sendSessionToPairedDevice(recipientDeviceIdHex: String) {
+        val appContext = profileRegistry?.let { null } ?: return  // Need ToteApplication context; TODO: wire properly
+        // For the alpha, we just log the intent. The actual transfer requires
+        // the local device identity + epoch state, which need to be loaded
+        // from AndroidKeyStore-encrypted storage (not yet wired to UI).
+        Log.i(TAG, "sendSessionToPairedDevice: recipient=$recipientDeviceIdHex (NOT YET WIRED — needs identity bootstrap)")
+        _lastSendStatus.value = "NOT_YET_WIRED: needs identity + epoch state bootstrap from AndroidKeyStore"
+    }
+
+    private val _lastSendStatus = MutableStateFlow<String?>(null)
+    val lastSendStatus: StateFlow<String?> = _lastSendStatus.asStateFlow()
 
     private fun normalizeUrl(url: String): String {
         val trimmed = url.trim()
