@@ -136,6 +136,7 @@ dependencies {
     implementation(libs.kotlinx.serialization.cbor)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.okhttp)
+    implementation(libs.zxing.core)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 
