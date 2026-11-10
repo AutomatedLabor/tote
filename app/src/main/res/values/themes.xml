@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Placeholder theme for the alpha. Parent is the framework Material Light
+        NoActionBar base so the manifest resolves before Compose takes over
+        surface drawing. This will be replaced by a Material 3 Compose theme
+        (MaterialTheme + a branded ToteTheme) once the Compose UI shell lands.
+    -->
+    <style name="Theme.Tote" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
