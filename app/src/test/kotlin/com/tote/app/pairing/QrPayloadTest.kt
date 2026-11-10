@@ -45,7 +45,7 @@ class QrPayloadTest {
     }
 
     @Test
-    fun `QR string is URL-safe (no + or / characters)`() {
+    fun `QR string is URL-safe (no plus or slash characters)`() {
         val payload = PairingPayload(
             relayUrl = "https://relay.tote.app/v1",
             senderDeviceId = ByteArray(32) { 0xFF.toByte() },  // worst case
