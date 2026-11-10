@@ -35,8 +35,11 @@ class WebViewPool(
         override fun removeEldestEntry(eldest: Map.Entry<String, WebViewEntry>): Boolean {
             if (size > maxLiveTabs) {
                 val tab = eldest.value
-                // Save state before evicting
+                // Save state before evicting — copy into the sidecar map so
+                // the next access can restore it (per ADR-014: truly-live tabs).
                 tab.checkpoint()
+                tab.savedState?.let { savedStates[eldest.key] = it }
+                savedUrls[eldest.key] = tab.lastUrl
                 tab.webView?.destroy()
                 Log.i(TAG, "LRU evicted tab: ${eldest.key} (pool size now ${size - 1})")
                 return true
@@ -52,23 +55,62 @@ class WebViewPool(
         var lastUrl: String = "about:blank",
         var screenshot: Bitmap? = null,
         var scrollY: Int = 0,
-        var isPaused: Boolean = false
+        var isPaused: Boolean = false,
+        /** Serialized WebView state (form data, scroll position, history).
+         *  Populated by [checkpoint] when a WebView is evicted, used by
+         *  [restoreState] when the tab is next accessed. Per ADR-014 (truly-live
+         *  tabs): this is what makes a tab "live" even after LRU eviction. */
+        var savedState: android.os.Bundle? = null,
+        /** Whether the WebView is currently in the foreground (attached). */
+        var isAttached: Boolean = false,
     ) {
         /**
          * Capture the tab's state for later restoration.
          * Per ADR-012: "paused" = destroyed WebView + serialized state.
+         *
+         * Per ADR-014 (truly-live tabs): we save:
+         *   - URL + scrollY (for instant visual restore)
+         *   - WebView.saveState() Bundle (for history + form data)
+         *   - Screenshot is a TODO (PixelCopy on Android 8+)
          */
         fun checkpoint() {
             webView?.let { wv ->
                 lastUrl = wv.url ?: lastUrl
                 scrollY = wv.scrollY
-                // Screenshot capture would go here (via PixelCopy or View.draw)
+                // Save full WebView state (history, form data) into a fresh Bundle.
+                // Per Android docs: WebView.saveState returns the same Bundle you
+                // pass in, populated with the state. Pass an empty Bundle.
+                if (savedState == null) {
+                    savedState = android.os.Bundle()
+                }
+                try {
+                    wv.saveState(savedState!!)
+                } catch (t: Throwable) {
+                    android.util.Log.w("WebViewPool", "saveState failed for tab=$tabId: ${t.message}")
+                }
             }
         }
     }
 
     private var appContext: Context? = null
     private var container: ViewGroup? = null
+
+    /**
+     * Sidecar map of saved WebView states, keyed by tab ID. Populated by
+     * [WebViewEntry.checkpoint] when a tab is evicted; consumed by
+     * [getOrCreateWebView] when the tab is re-created.
+     *
+     * Per ADR-014 (truly-live tabs): this is what makes an evicted tab
+     * "live" again — the user sees the same page (with form data + history)
+     * instead of a fresh load.
+     */
+    private val savedStates = mutableMapOf<String, android.os.Bundle>()
+
+    /**
+     * Sidecar map of last-known URLs, keyed by tab ID. Used to fall back to
+     * a URL reload if WebView state restoration fails.
+     */
+    private val savedUrls = mutableMapOf<String, String>()
 
     /**
      * Initialize the pool with the application context and the container
@@ -82,7 +124,9 @@ class WebViewPool(
     /**
      * Get or create a WebView for a tab.
      * If the tab is in the live pool, return it (instant switch, no reload).
-     * If not, create a new WebView (will need to reload the URL).
+     * If not, create a new WebView and restore its saved state if any (URL,
+     * scroll position, form data, history) — so the user sees the page they
+     * left, not a reload.
      */
     fun getOrCreateWebView(tabId: String, profileId: String): WebView? {
         val ctx = appContext ?: return null
@@ -123,6 +167,25 @@ class WebViewPool(
             WebView.setWebContentsDebuggingEnabled(false)
         }
 
+        // Look up the previous entry (if any) to restore state from. The entry
+        // would have been removed from liveWebViews on eviction, so we keep
+        // a sidecar map of saved states keyed by tab ID. For simplicity in the
+        // alpha, we store the savedState on the entry itself and look it up
+        // from a parallel `savedStates` map.
+        val savedState = savedStates[tabId]
+        val lastUrl = savedUrls[tabId]
+        if (savedState != null) {
+            try {
+                webView.restoreState(savedState)
+                Log.i(TAG, "Restored WebView state for tab=$tabId (history + form data)")
+            } catch (t: Throwable) {
+                Log.w(TAG, "restoreState failed for tab=$tabId: ${t.message}")
+                if (lastUrl != null) webView.loadUrl(lastUrl)
+            }
+        } else if (lastUrl != null && lastUrl != "about:blank") {
+            webView.loadUrl(lastUrl)
+        }
+
         // Attach to container
         vg.addView(webView, ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -130,7 +193,8 @@ class WebViewPool(
         ))
 
         // Store in pool
-        val entry = WebViewEntry(tabId, profileId, webView)
+        val entry = WebViewEntry(tabId, profileId, webView, lastUrl ?: "about:blank")
+        entry.isAttached = true
         liveWebViews[tabId] = entry
 
         Log.i(TAG, "Created WebView for tab=$tabId profile=$profileId (pool size: ${liveWebViews.size})")
@@ -169,6 +233,10 @@ class WebViewPool(
      * 1. Profile-switch (destroy all, recreate for new profile)
      * 2. BrowserActivity.onDestroy() (belt-and-suspenders)
      * 3. ViewModel.onCleared()
+     *
+     * Note: this also clears the sidecar savedStates/savedUrls maps, since
+     * they're tied to the current set of tabs. (Profile-switch destroys the
+     * tabs themselves; TabManager handles that.)
      */
     fun destroyAll() {
         for ((tabId, entry) in liveWebViews) {
@@ -179,6 +247,8 @@ class WebViewPool(
             }
         }
         liveWebViews.clear()
+        savedStates.clear()
+        savedUrls.clear()
         Log.i(TAG, "Destroyed all WebViews (pool cleared)")
     }
 
@@ -222,6 +292,8 @@ class WebViewPool(
         val toEvict = liveWebViews.entries.filter { it.key != active?.key }
         for ((tabId, entry) in toEvict) {
             entry.checkpoint()
+            entry.savedState?.let { savedStates[tabId] = it }
+            savedUrls[tabId] = entry.lastUrl
             entry.webView?.let { wv ->
                 container?.removeView(wv)
                 wv.destroy()

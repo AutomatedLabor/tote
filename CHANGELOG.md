@@ -8,18 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Pending (next batch)
-- UI wiring for cookie transfer button (snapshot + apply via the existing `SessionSnapshot` facade)
-- Pairing flow screens (QR generation/scanning + SAS verification UI)
-- Recovery onboarding flow (first-run BIP-39 generation + confirmation)
-- Kill switch settings screen (nuke trigger + duress code setup)
-- Relay client wired to foreground sync service
-- Truly-live tabs polish (screenshot capture, scrollY restore, form state, saveState)
-- Theme + adaptive launcher icon
-- Accessibility (TalkBack, content descriptions, switch control)
-- Empty/error/loading states across all UI screens
-- First-run onboarding tour
+- Argon2id recovery code derivation (replaces HKDF for v1.0.0)
+- AndroidKeyStore AES-GCM wrapping for IdentityStore + PeerDeviceRegistry at-rest secrets
+- PixelCopy tab screenshots (replaces URL+scrollY-only state on LRU eviction)
+- Receiver-side QR scan → relay-mediated peer pub exchange (currently manual paste)
+- First-launch onboarding tour polish (animated illustrations)
+- Play Store submission (special-use FGS declaration already in manifest)
 
-## [v0.2.0-alpha1] - 2026-11-10
+## [v0.4.0-alpha1] - 2026-11-11
+
+### Added
+- **Theme + adaptive launcher icon** — Material3 `ToteTheme` with branded Tote orange (#FF5722) + deep teal (#00695C) palette, plus Material You dynamic color on Android 12+. Adaptive launcher icon (vector foreground + gradient background). DayNight-aware.
+- **Settings screen** — Full Settings UI: paired devices (list + remove), recovery code (view + rotate), kill switch (nuke trigger + duress code), about. Accessed from BrowserScreen top bar.
+- **First-run onboarding flow** — 5-page horizontal pager: Welcome → Identity generation → Recovery code display → Recovery confirm (type word N) → Done. Gate: only shown if `tote_onboarding/complete` is false.
+- **Recovery code display** — BIP-39 mnemonic rendered as numbered monospace list, with warning text. Accessible from Settings.
+- **Kill switch UI** — NUKE trigger with live 24-hour countdown timer (cancel within window), DURESS code entry (≥8 chars, persisted to app-private SharedPreferences).
+- **SAS verification dialog** — 6-digit number + 3-emoji display, with "They match" / "They don't match" buttons. Per CRYPTO-SPEC-FINAL §3: explicit MITM detection prompt.
+- **Full pairing flow dialog** — State machine: SHOW_QR → AWAIT_PEER_PUB → SHOW_SAS → DONE. Persists peer to `PeerDeviceRegistry` and pairingRoot to `IdentityStore`.
+- **Peer device registry** — `PeerDeviceRegistry` persists paired devices (deviceId + x25519Pub + displayName + pairedAt + lastSeenAt) as JSON in SharedPreferences. Used by sync service for sender pubkey lookup on receive.
+- **Foreground sync service** — `SessionSyncService` polls the relay every 60s for incoming envelopes. Foreground service with low-priority notification. Applies incoming session blobs + posts a separate notification when an incoming session is applied.
+- **Truly-live tabs polish** — `WebViewPool` now saves `WebView.saveState()` Bundle + URL + scrollY on LRU eviction / app background. On next access, `WebView.restoreState()` restores history + form data + scroll position (no reload). Per ADR-014.
+- **Navigation scaffold** — `ToteNavHost` with 4 routes (onboarding → browser → settings → qr_scanner). Onboarding gate via SharedPreferences.
+- **Camera permission + CAMERA feature** — Manifest declares `android.permission.CAMERA` and `android.hardware.camera` (required=false, since QR scanning is optional).
+- **Foreground service special-use declaration** — Manifest declares `FOREGROUND_SERVICE_SPECIAL_USE` with the `PROPERTY_SPECIAL_USE_FGS_SUBTYPE` property explaining the relay polling use case.
+- **Status banner** — BrowserScreen shows last send/receive status (success/error) below the URL bar.
+- **Settings button** — Added to BrowserScreen top bar (gear icon).
+
+### Changed
+- **MainActivity** — Now uses `ToteTheme` + `ToteNavHost` for navigation. Starts `SessionSyncService` on launch. Checks `tote_onboarding/complete` SharedPreferences flag to route to onboarding on first launch.
+- **BrowserScreen** — Added Settings IconButton in top bar + status banner below URL bar.
+- **WebViewPool** — `WebViewEntry.checkpoint()` now also saves `WebView.saveState()` Bundle. `getOrCreateWebView()` calls `restoreState()` if a saved Bundle exists. `destroyAll()` and `onAppBackground()` preserve state in sidecar maps before destroying.
+- **RelayClient** — `InboxEntry` now has an optional `senderId` field (parsed from relay response if present). Regex updated to optionally match `sender_id` in JSON.
+- **build.gradle.kts** — versionCode 3 → 4, versionName 0.3.0-alpha → 0.4.0-alpha. Added CameraX (camera-core, camera-camera2, camera-lifecycle, camera-view) + material-icons-extended dependencies.
+- **libs.versions.toml** — Added cameraX = "1.3.4" version + 4 cameraX libraries + material-icons-extended.
+
+### Fixed
+- None — all v0.3.0-alpha1 tests preserved (117 passing).
+
+## [v0.3.0-alpha1] - 2026-11-10
 
 ### Added
 - **Cookie snapshot pipeline** — `CookieSnapshotExtractor` opens the WebView SQLite `Cookies` file per profile, reads all 16 attributes per cookie. OSCrypt fallback via `CookieManager.getCookie()` per host for cookies where the SQLite `value` column is empty (encrypted_value path).

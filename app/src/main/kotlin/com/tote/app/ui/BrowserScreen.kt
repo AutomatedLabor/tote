@@ -35,19 +35,27 @@ import com.tote.app.webview.DeviceTierHelper
  * The WebView is owned by [BrowserViewModel.webViewPool] and survives across
  * recompositions. We attach the pool's active WebView into the [AndroidView]
  * factory (NOT a fresh WebView each recompose).
+ *
+ * @param onOpenSettings Called when the user taps the Settings button
+ * @param onOpenQrScanner Called when the user taps the Pair button (starts
+ *   the full pairing flow with QR display + SAS verify)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BrowserScreen(
     viewModel: BrowserViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenSettings: () -> Unit = {},
+    onOpenQrScanner: () -> Unit = {},
 ) {
     var urlText by remember { mutableStateOf("") }
     var showProfilePicker by remember { mutableStateOf(false) }
     var showSendSessionDialog by remember { mutableStateOf(false) }
     var showPairingDialog by remember { mutableStateOf(false) }
+    var showFullPairingFlow by remember { mutableStateOf(false) }
     val activeUrl by viewModel.activeUrl.collectAsState()
     val activeProfileId by viewModel.activeProfileId.collectAsState()
+    val lastSendStatus by viewModel.lastSendStatus.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     // One-time setup: tell the ViewModel about the device tier so it can size
@@ -139,10 +147,38 @@ fun BrowserScreen(
 
             // Pairing button (shows QR for the other device to scan)
             IconButton(
-                onClick = { showPairingDialog = true },
+                onClick = { showFullPairingFlow = true },
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Pair a device via QR")
+            }
+
+            // Settings button
+            IconButton(
+                onClick = onOpenSettings,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(Icons.Default.Settings, contentDescription = "Open settings")
+            }
+        }
+
+        // Send/receive status banner
+        val statusMsg = lastSendStatus
+        if (statusMsg != null) {
+            Surface(
+                color = if (statusMsg.startsWith("SENT") || statusMsg.startsWith("APPLIED"))
+                    MaterialTheme.colorScheme.primaryContainer
+                else if (statusMsg.startsWith("ERROR") || statusMsg.startsWith("SEND FAILED"))
+                    MaterialTheme.colorScheme.errorContainer
+                else
+                    MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = statusMsg,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
 
@@ -213,7 +249,7 @@ fun BrowserScreen(
         )
     }
 
-    // Pairing dialog (shows QR)
+    // Legacy pairing dialog (just shows QR — kept for back-compat)
     if (showPairingDialog) {
         PairingDialog(
             onDismiss = { showPairingDialog = false },
@@ -223,6 +259,18 @@ fun BrowserScreen(
                 app.identityStore.savePairingRoot(pairingRoot)
                 showPairingDialog = false
             }
+        )
+    }
+
+    // Full pairing flow (QR display → peer pub paste → SAS verify → persist)
+    if (showFullPairingFlow) {
+        FullPairingFlowDialog(
+            onPairingComplete = { _, _ ->
+                showFullPairingFlow = false
+            },
+            onDismiss = {
+                showFullPairingFlow = false
+            },
         )
     }
 }

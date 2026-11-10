@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark-mode variants of the Tote palette (auto-selected by DayNight). -->
+    <color name="tote_primary">#FF7043</color>
+    <color name="tote_primary_variant">#FF5722</color>
+    <color name="tote_secondary">#4DB6AC</color>
+    <color name="tote_background">#121212</color>
+    <color name="tote_surface">#1E1E1E</color>
+    <color name="tote_on_primary">#000000</color>
+    <color name="tote_on_background">#FAFAFA</color>
+</resources>

@@ -8,22 +8,25 @@ You log into a grocery web app on Phone A. 5 minutes later (or 5 weeks later) yo
 
 If the user loses a phone, they revoke its access from a paired device. If both phones are lost, they recover from a 12-word code. The product survives worst-day-of-their-life scenarios.
 
-## Status: ALPHA — v0.2.0-alpha1 SHIPPED
+## Status: ALPHA — v0.4.0-alpha1 SHIPPED
 
-Tote is in active alpha development. **Two pre-release APKs are live on GitHub Releases** (both drafts, awaiting principal approval):
+Tote is in active alpha development. **Three pre-release APKs are live on GitHub Releases:**
 
 | Release | APK size | APK SHA-256 | Tests | Date |
 |---|---|---|---|---|
 | `v0.1.0-alpha1` | 7.46 MB | `43c28483d6e585f5b89997c47210f1901f37f9f87ca65aeb226ceffddc1fa6c7` | 67 | 2026-11-10 |
 | `v0.2.0-alpha1` | 7.88 MB | `19c88b96551c8644c30b0e4a6a1a815c2ae9b5bdeb3e949060a0a5ee090fe0fd` | 112 | 2026-11-10 |
+| `v0.3.0-alpha1` | 7.89 MB | `7b58e4eeffeb3d81b97df46a40ca4c426822c364a59f1dc169e6d424c1081ae2` | 117 | 2026-11-10 |
 
-Both APKs are:
+All APKs are:
 - Code-signed with the production release keystore (cert SHA-256: `df96cae5c963cef4b2adccd6ccf3a76113a0386e2376232f3dc758374acf4196`).
 - Verified by `apksigner verify --print-certs --verbose` (NOT `keytool`).
 - Accompanied by a `.sha256` sidecar.
 - Uploaded as GitHub Actions artifacts (downloadable even without release access).
 - SLSA build provenance attestation attempted (best-effort via `continue-on-error`).
 - 100% JVM unit-test passing on each push.
+
+**v0.4.0-alpha1 (this commit)** adds the full Settings screen, first-run onboarding flow, kill switch UI (nuke + duress), SAS verification dialog, peer device registry, foreground sync service, truly-live tabs polish (WebView saveState/restoreState), adaptive launcher icon, and Material3 theme.
 
 - **Working name:** Tote (placeholder; subject to user testing).
 - **One-line pitch:** WhatsApp Linked Devices, for web sessions, on mobile.

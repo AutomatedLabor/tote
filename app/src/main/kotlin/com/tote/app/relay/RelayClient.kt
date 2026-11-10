@@ -293,27 +293,35 @@ class RelayClient(private val config: RelayConfig) {
 
     /**
      * Parse the JSON response of GET /inbox/{id}.
+     *
+     * Two envelope shapes are supported:
+     *   {"id":"…","size":N,"received_at":N,"sender_id":"<hex>"}
+     *   {"id":"…","size":N,"received_at":N}
+     *
+     * The sender_id is optional (older relays don't expose it).
      */
     private fun parseInboxResponse(body: String): List<InboxEntry> {
         val entries = mutableListOf<InboxEntry>()
-        val regex = Regex("""\{"id":"([^"]+)","size":(\d+),"received_at":(\d+)\}""")
+        val regex = Regex("""\{"id":"([^"]+)","size":(\d+),"received_at":(\d+)(?:,"sender_id":"([^"]*)")?\}""")
         for (m in regex.findAll(body)) {
             entries.add(InboxEntry(
                 id = m.groupValues[1],
                 size = m.groupValues[2].toInt(),
                 receivedAt = m.groupValues[3].toLong(),
+                senderId = m.groupValues[4].takeIf { it.isNotEmpty() },
             ))
         }
         return entries
     }
 
     private fun parseInboxEntry(json: String): InboxEntry {
-        val regex = Regex("""\{"id":"([^"]+)","size":(\d+),"received_at":(\d+)\}""")
+        val regex = Regex("""\{"id":"([^"]+)","size":(\d+),"received_at":(\d+)(?:,"sender_id":"([^"]*)")?\}""")
         val m = regex.find(json) ?: throw IllegalArgumentException("Bad inbox entry JSON: $json")
         return InboxEntry(
             id = m.groupValues[1],
             size = m.groupValues[2].toInt(),
             receivedAt = m.groupValues[3].toLong(),
+            senderId = m.groupValues[4].takeIf { it.isNotEmpty() },
         )
     }
 
@@ -340,6 +348,13 @@ data class InboxEntry(
     val id: String,
     val size: Int,
     val receivedAt: Long,
+    /**
+     * Sender's local device ID (hex-encoded Ed25519 pubkey, 64 chars).
+     * Populated by the relay's envelope metadata; null if the relay doesn't
+     * expose it. Used by [SessionSyncService] to look up the sender's pubkey
+     * in [PeerDeviceRegistry] for signature verification on receive.
+     */
+    val senderId: String? = null,
 )
 
 enum class ConnectionState {

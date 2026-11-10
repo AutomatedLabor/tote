@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-        Placeholder theme for the alpha. Parent is the framework Material Light
-        NoActionBar base so the manifest resolves before Compose takes over
-        surface drawing. This will be replaced by a Material 3 Compose theme
-        (MaterialTheme + a branded ToteTheme) once the Compose UI shell lands.
+        Tote branded theme. Uses Material3 DayNight parent so the app respects
+        system dark/light mode. The branded colors (Tote orange + deep teal)
+        are applied via MaterialTheme in Compose (see ToteTheme.kt); this XML
+        theme is what the manifest resolves before Compose takes over surface
+        drawing.
     -->
-    <style name="Theme.Tote" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Tote" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">@color/tote_background</item>
+    </style>
+
+    <color name="tote_primary">#FF5722</color>      <!-- Tote orange -->
+    <color name="tote_primary_variant">#E64A19</color>
+    <color name="tote_secondary">#00695C</color>   <!-- Deep teal -->
+    <color name="tote_background">#FAFAFA</color>
+    <color name="tote_surface">#FFFFFF</color>
+    <color name="tote_on_primary">#FFFFFF</color>
+    <color name="tote_on_background">#1A1A1A</color>
 </resources>

@@ -5,13 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
-import com.tote.app.ui.BrowserScreen
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.tote.app.ui.ToteNavHost
+import com.tote.app.ui.ToteTheme
 import com.tote.app.webview.BrowserViewModel
 import com.tote.app.webview.ToteMemoryObserver
+import com.tote.app.session.SessionSyncService
 
 class MainActivity : ComponentActivity() {
 
@@ -31,14 +31,26 @@ class MainActivity : ComponentActivity() {
         ToteMemoryObserver.currentPool = viewModel.webViewPool
 
         setContent {
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    BrowserScreen(viewModel = viewModel)
+            ToteTheme {
+                val context = LocalContext.current
+                val onboardingComplete = remember {
+                    context.getSharedPreferences("tote_onboarding", 0)
+                        .getBoolean("complete", false)
                 }
+
+                ToteNavHost(
+                    viewModel = viewModel,
+                    onboardingComplete = onboardingComplete,
+                )
             }
+        }
+
+        // Start the foreground sync service so incoming sessions are applied
+        // even while the user is browsing. Per ADR-014.
+        try {
+            SessionSyncService.start(applicationContext)
+        } catch (t: Throwable) {
+            android.util.Log.w("MainActivity", "Failed to start SessionSyncService: ${t.message}")
         }
     }
 
