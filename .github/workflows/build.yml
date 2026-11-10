@@ -27,9 +27,36 @@ permissions:
   contents: read
 
 jobs:
+  assert-no-app-without-scanners:
+    name: "Guard: app/ requires codeql + osv-scanner active"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: "If app/ exists, codeql + osv-scanner must be in workflows/ (not workflows-pending/)"
+        run: |
+          set -eu
+          if [ -d "app" ]; then
+            echo "app/ module detected — scanners MUST be active."
+            if [ -f ".github/workflows-pending/codeql.yml" ]; then
+              echo "::error::app/ exists but codeql.yml is still in workflows-pending/. Run: git mv .github/workflows-pending/codeql.yml .github/workflows/codeql.yml"
+              exit 1
+            fi
+            if [ -f ".github/workflows-pending/osv-scanner.yml" ]; then
+              echo "::error::app/ exists but osv-scanner.yml is still in workflows-pending/. Run: git mv .github/workflows-pending/osv-scanner.yml .github/workflows/osv-scanner.yml"
+              exit 1
+            fi
+            echo "OK: app/ exists and both scanners are active."
+          else
+            echo "No app/ module yet — scanners correctly parked."
+          fi
+
   placeholder:
     name: "Phase 1 placeholder - no app code yet"
     runs-on: ubuntu-latest
+    needs: assert-no-app-without-scanners
     steps:
       - uses: actions/checkout@v4
         with:

@@ -25,12 +25,12 @@ The full planning, council iterations, threat model, survivor UX spec, and ops n
 - `SECURITY.md` - security policy.
 - `LICENSE` - MIT.
 - `CHANGELOG.md` - release history (empty until v1.0.0 ships).
-- `.github/workflows/` - CI workflows (build, codeql, gitleaks, osv-scanner, markdown-check).
+- `.github/workflows/` - active CI: build (placeholder until app/ exists), gitleaks (secret scan), markdown-check (lint+link). CodeQL + OSV-Scanner are parked in `.github/workflows-pending/` (activate when app/ + gradle.lockfile exist; see `workflows-pending/README.md`).
 - `docs/README.md` - pointer to the private docs repo.
 
 ## What works (planned for v1.0.0)
 
-(No code yet. The following is the planned v1.0.0 scope per `tote-docs/planning/ROADMAP.md` Phase 1.)
+(No code yet — planning phase. The repo currently contains docs, CI scaffolding, and the release keystore (gitignored). First Kotlin lands in Phase 1.)
 
 - **Multi-profile WebView shell** (Android-first, iOS 17+ secondary). Each profile = isolated cookie jar + localStorage + IndexedDB. Color-coded. Switch instantly.
 - **Per-profile cookie SQLite export + import** - full attribute fidelity (Secure, HttpOnly, SameSite, Partitioned, etc.).

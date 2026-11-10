@@ -40,7 +40,13 @@ If you're reporting a vulnerability that requires us to forge TLS to "make a sit
 
 ## Security scan posture
 
-- **gitleaks** scans every PR and push for leaked secrets. The literal PAT pattern (`ghp_[A-Za-z0-9]{36}`) and Vercel token pattern (`vcp_[A-Za-z0-9_]+`) are explicitly blocklisted in `.gitleaks.toml`.
-- **CodeQL** scans every PR and push for security vulnerabilities (Kotlin/Java).
-- **OSV-Scanner** scans dependencies for known CVEs.
-- **Job D (security scan)** will run daily once Phase 1 ships, re-scanning the full repo history and latest dependencies.
+**Active CI scans (current):**
+- **gitleaks** scans every PR and push for leaked secrets. 16 rules covering GitHub PATs (all prefixes: `ghp_`, `github_pat_`, `gho_`, `ghs_`, `ghr_`, `ghu_`), AWS (`AKIA`), Stripe (`sk_live_`/`rk_live_`), Slack (`xox`), PEM private keys, Fly.io, Render, Vercel, and Tote-specific patterns. See `.gitleaks.toml`.
+- **markdown-check** lints and link-checks all markdown on PR/push.
+
+**Parked CI scans (activate when `app/` lands):**
+- **CodeQL** is in `.github/workflows-pending/codeql.yml` — NOT YET ACTIVE. It requires Kotlin/Java source to analyze. Activate via `git mv .github/workflows-pending/codeql.yml .github/workflows/codeql.yml` when `app/` module exists.
+- **OSV-Scanner** is in `.github/workflows-pending/osv-scanner.yml` — NOT YET ACTIVE. It requires a lockfile (`gradle.lockfile`). Activate via `git mv` when lockfile exists.
+- An `assert-no-app-without-scanners` guard in `build.yml` will fail the build if `app/` exists but either scanner is still parked.
+
+**Job D (security scan cron)** will run daily once Phase 1 ships, re-scanning full repo history and latest dependencies.

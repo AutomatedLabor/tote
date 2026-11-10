@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Survivor UX spec (`tote-docs/SURVIVOR-UX.md`).
 - Cookie fidelity spike plan (`tote-docs/planning/COOKIE-FIDELITY-SPIKE.md`).
 - Ops stubs (`tote-docs/ops/`).
-- CI workflows (`.github/workflows/`): build (placeholder), codeql, gitleaks, osv-scanner, markdown-check.
+- Active CI workflows: gitleaks (16-rule secret scan), markdown-check (lint+link). Build workflow is a placeholder until `app/` exists.
+- Parked CI workflows (`.github/workflows-pending/`): codeql, osv-scanner. Activate when `app/` module + `gradle.lockfile` exist. See `workflows-pending/README.md`.
 
 ### Pending (Phase 0)
 - 6 spike reports (`tote-docs/planning/spikes/`).
