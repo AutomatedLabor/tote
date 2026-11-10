@@ -18,7 +18,7 @@ Tote is in active alpha development. **Five pre-release APKs are now live on Git
 | `v0.2.0-alpha1` | 7.88 MB | `19c88b96551c8644c30b0e4a6a1a815c2ae9b5bdeb3e949060a0a5ee090fe0fd` | 112 | 2026-11-10 |
 | `v0.3.0-alpha1` | 7.89 MB | `7b58e4eeffeb3d81b97df46a40ca4c426822c364a59f1dc169e6d424c1081ae2` | 117 | 2026-11-10 |
 | `v0.4.0-alpha1` | 16.47 MB | `5ccb8859ed84446d8aaab0735e2f5b1501b6cff2575f9bf57fe026eeb2859897` | 117 | 2026-11-11 |
-| `v0.5.0-alpha1` | (post-build) | (see sidecar) | ~140 | 2026-11-11 |
+| `v0.5.0-alpha1` | 16.49 MB | `b87af1dc6fdb1c287984b38c9ba3d72caa7c98bce2c7762b1db5e5089d00333c` | 140 | 2026-11-11 |
 
 All APKs are:
 - Code-signed with the production release keystore (cert SHA-256: `df96cae5c963cef4b2adccd6ccf3a76113a0386e2376232f3dc758374acf4196`).
