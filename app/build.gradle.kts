@@ -59,8 +59,8 @@ android {
         applicationId = "com.tote.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 6
-        versionName = "0.6.0-alpha"
+        versionCode = 7
+        versionName = "1.0.0-alpha1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }

@@ -215,6 +215,20 @@ fun BrowserScreen(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+
+            // Tab strip overlay — shows one thumbnail per open tab. Tapping a
+            // thumbnail switches to that tab. Long-press closes.
+            TabStripOverlay(
+                tabs = viewModel.tabManager.getAllTabs(),
+                activeTabId = viewModel.tabManager.getActiveTab()?.id,
+                webViewPool = viewModel.webViewPool,
+                onTabSelected = { tabId -> viewModel.tabManager.switchTab(tabId) },
+                onTabClosed = { tabId -> viewModel.tabManager.closeTab(tabId) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(72.dp)
+            )
         }
     }
 

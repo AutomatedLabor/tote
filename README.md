@@ -8,9 +8,9 @@ You log into a grocery web app on Phone A. 5 minutes later (or 5 weeks later) yo
 
 If the user loses a phone, they revoke its access from a paired device. If both phones are lost, they recover from a 12-word code. The product survives worst-day-of-their-life scenarios.
 
-## Status: ALPHA — v0.6.0-alpha1 SHIPPED (PUBLISHED)
+## Status: ALPHA — v1.0.0-alpha1 SHIPPED (PUBLISHED)
 
-Tote is in active alpha development. **Six pre-release APKs are now live on GitHub Releases:**
+Tote is in active alpha development. **Seven pre-release APKs are now live on GitHub Releases:**
 
 | Release | APK size | APK SHA-256 | Tests | Date |
 |---|---|---|---|---|
@@ -19,7 +19,8 @@ Tote is in active alpha development. **Six pre-release APKs are now live on GitH
 | `v0.3.0-alpha1` | 7.89 MB | `7b58e4eeffeb3d81b97df46a40ca4c426822c364a59f1dc169e6d424c1081ae2` | 117 | 2026-11-10 |
 | `v0.4.0-alpha1` | 16.47 MB | `5ccb8859ed84446d8aaab0735e2f5b1501b6cff2575f9bf57fe026eeb2859897` | 117 | 2026-11-11 |
 | `v0.5.0-alpha1` | 16.49 MB | `b87af1dc6fdb1c287984b38c9ba3d72caa7c98bce2c7762b1db5e5089d00333c` | 140 | 2026-11-11 |
-| `v0.6.0-alpha1` | (post-build) | (see sidecar) | 140 | 2026-11-11 |
+| `v0.6.0-alpha1` | 11.55 MB | `66d1661697327328af7eb08b2694be9eb5dde3c26723fbaa5894f6454c9709d7` | 140 | 2026-11-11 |
+| `v1.0.0-alpha1` | (post-build) | (see sidecar) | 140 | 2026-11-11 |
 
 All APKs are:
 - Code-signed with the production release keystore (cert SHA-256: `df96cae5c963cef4b2adccd6ccf3a76113a0386e2376232f3dc758374acf4196`).
@@ -29,7 +30,7 @@ All APKs are:
 - SLSA build provenance attestation attempted (best-effort via `continue-on-error`).
 - 100% JVM unit-test passing on each push.
 
-**v0.6.0-alpha1** adds relay-mediated peer-pubkey exchange (the receiver auto-publishes its X25519 pubkey to the relay on SAS confirm; the sender fetches by deviceId hex — no more manual paste), enables R8/ProGuard + resource shrinking, and updates ToteApplication.onCreate to publish our pubkey on every app start (idempotent). APK size expected to drop from 16 MB to ~8-10 MB.
+**v1.0.0-alpha1** adds the TabStripOverlay (bottom-of-screen tab thumbnails with screenshot + title + close button, TalkBack-tagged), 3 architecture docs (Architecture, Threat Model, API Stability) in tote-docs, and distribution metadata (Play Store listing, F-Droid com.tote.app.yml draft, GitHub topics applied to both repos). This is the v1.0.0-prep milestone — feature-complete for public-launch testing.
 
 - **Working name:** Tote (placeholder; subject to user testing).
 - **One-line pitch:** WhatsApp Linked Devices, for web sessions, on mobile.

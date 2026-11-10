@@ -7,11 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Pending (next batch)
+### Pending (post-v1.0.0-alpha1)
 - Animated illustrations for first-run onboarding (Lottie)
-- Play Store submission (special-use FGS declaration already in manifest)
 - Robolectric integration tests for SharedPreferences-backed stores
 - End-to-end instrumented tests (Espresso / UI Automator) for the QR → pairing → SAS → persist flow
+- Play Store + F-Droid submission (listing metadata drafted in tote-docs/ops/DISTRIBUTION.md)
+
+## [v1.0.0-alpha1] - 2026-11-11
+
+### Added
+- **Tab strip overlay** — new `TabStripOverlay` composable renders a horizontal row of tab thumbnails at the bottom of the BrowserScreen. Each thumbnail shows the screenshot captured by `WebViewPool.WebViewEntry.checkpoint()` (when the tab was last evicted) + the tab title + a close button. Tapping a thumbnail switches tabs (instant, no reload). The "new tab" + button at the end of the strip is wired for future use. TabStripOverlay is accessibility-tagged: each thumbnail has `contentDescription = "Tab: <title>. Double-tap to switch."` and `role = Tab`.
+- **Architecture + Threat Model + API Stability docs** — 3 new docs in tote-docs (planning/ARCHITECTURE.md, THREAT-MODEL.md, planning/API-STABILITY.md) covering module map + 3 data-flow diagrams, 6-adversary model with anti-fraud bright line, and Stable/Experimental/Internal API tiers with wire-format specs.
+- **Distribution metadata** — tote-docs/ops/DISTRIBUTION.md contains the Play Store listing (title, short/long description, FGS special-use declaration, content rating, screenshots TODO), F-Droid metadata (com.tote.app.yml draft), and GitHub topics. GitHub topics applied to AutomatedLabor/tote (15 topics) and AutomatedLabor/tote-relay (9 topics).
+
+### Changed
+- **BrowserScreen** — adds `TabStripOverlay` at the bottom of the WebView area, calling into `viewModel.tabManager.getAllTabs()` and `viewModel.webViewPool.getThumbnail(tabId)`.
+- **WebViewPool** — new public `getThumbnail(tabId)` method exposing the captured screenshot Bitmap (was private state on `WebViewEntry`).
+- **build.gradle.kts** — versionCode 6 → 7, versionName 0.6.0-alpha → 1.0.0-alpha1.
+
+### Fixed
+- None — all v0.6.0-alpha1 tests preserved (140 passing).
 
 ## [v0.6.0-alpha1] - 2026-11-11
 

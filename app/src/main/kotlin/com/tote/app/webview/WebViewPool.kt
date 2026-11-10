@@ -317,6 +317,19 @@ class WebViewPool(
     fun liveCount(): Int = liveWebViews.size
 
     /**
+     * Get the screenshot thumbnail for a tab, if available.
+     *
+     * Per ADR-014: the thumbnail is captured by [WebViewEntry.checkpoint]
+     * when the tab was last evicted. If the tab is currently live, returns
+     * null (we don't pull a live screenshot per render — too expensive).
+     *
+     * Used by [com.tote.app.ui.TabStripOverlay] to render tab thumbnails.
+     */
+    fun getThumbnail(tabId: String): Bitmap? {
+        return liveWebViews[tabId]?.screenshot
+    }
+
+    /**
      * Check if a tab is currently live (in the pool, not destroyed).
      */
     fun isLive(tabId: String): Boolean = liveWebViews.containsKey(tabId)
