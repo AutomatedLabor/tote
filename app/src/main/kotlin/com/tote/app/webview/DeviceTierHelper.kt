@@ -2,7 +2,6 @@ package com.tote.app.webview
 
 import android.app.ActivityManager
 import android.content.Context
-import android.os.Build
 import android.util.Log
 
 /**
@@ -60,12 +59,10 @@ object DeviceTierHelper {
     fun detect(context: Context): DeviceTier {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val isLowRam = am.isLowRamDevice
-        val memClass = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT && am.isLargeMemoryClass) {
-            am.largeMemoryClass
-        } else {
-            am.memoryClass
-        }
-        val isLargeHeap = am.isLargeMemoryClass  // true if manifest declares largeHeap=true
+        // Determine if the app's manifest declares largeHeap=true. ActivityManager
+        // doesn't directly expose this; we read it from the ApplicationInfo flags.
+        val isLargeHeap = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_LARGE_HEAP) != 0
+        val memClass = if (isLargeHeap) am.largeMemoryClass else am.memoryClass
         val tabs = computeMaxTabs(memClass, isLowRam, isLargeHeap)
         val tierName = when {
             isLowRam || memClass <= 192 -> "LOW"
