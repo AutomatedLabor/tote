@@ -1,6 +1,7 @@
 package com.tote.app.ui
 
 import android.util.Log
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -39,7 +40,7 @@ import kotlinx.coroutines.launch
  * 128 bits of SecureRandom entropy and stored (encrypted at rest by v1.0.0
  * AndroidKeyStore wrapping).
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FirstRunOnboardingScreen(
     onComplete: () -> Unit,
