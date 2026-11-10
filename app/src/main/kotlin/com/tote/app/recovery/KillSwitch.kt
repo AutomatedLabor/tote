@@ -55,7 +55,7 @@ class KillSwitch {
     }
 
     /** Current mode. Backed by AtomicLong for thread-safe reads. */
-    private val modeOrdinal = AtomicLong(Mode.IDLE.ordinal)
+    private val modeOrdinal = AtomicLong(Mode.IDLE.ordinal.toLong())
 
     val currentMode: Mode
         get() = Mode.entries[modeOrdinal.get().toInt()]
@@ -81,7 +81,7 @@ class KillSwitch {
             return existing
         }
         nukeTriggeredAt.set(now)
-        modeOrdinal.set(Mode.NUKE_PENDING.ordinal)
+        modeOrdinal.set(Mode.NUKE_PENDING.ordinal.toLong())
         Log.w(TAG, "NUKE TRIGGERED at $now — 24h countdown starts. User can cancel.")
         return now
     }
@@ -100,7 +100,7 @@ class KillSwitch {
             return false
         }
         nukeTriggeredAt.set(0L)
-        modeOrdinal.set(Mode.IDLE.ordinal)
+        modeOrdinal.set(Mode.IDLE.ordinal.toLong())
         Log.i(TAG, "Nuke CANCELLED — no data destroyed")
         return true
     }
@@ -115,7 +115,7 @@ class KillSwitch {
         if (triggered == 0L) return false
         val elapsed = now - triggered
         if (elapsed <= nukeCooldownMs) return false
-        modeOrdinal.set(Mode.NUKE_EXECUTED.ordinal)
+        modeOrdinal.set(Mode.NUKE_EXECUTED.ordinal.toLong())
         Log.e(TAG, "NUKE COOLDOWN ELAPSED — executing nuke NOW")
         return true
     }
@@ -137,7 +137,7 @@ class KillSwitch {
             diff = diff or (enteredCode[i].code xor expectedCode[i].code)
         }
         if (diff != 0) return false
-        modeOrdinal.set(Mode.DURESS_ACTIVATED.ordinal)
+        modeOrdinal.set(Mode.DURESS_ACTIVATED.ordinal.toLong())
         Log.w(TAG, "DURESS ACTIVATED — sensitive profiles will be zeroised")
         return true
     }

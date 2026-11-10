@@ -106,10 +106,13 @@ class RelayClient(private val config: RelayConfig) {
 data class RelayConfig(
     val baseUrl: String,           // e.g. "https://relay.tote.app/v1"
     val baseUrlWs: String,         // e.g. "wss://relay.tote.app/v1"
-    val localDeviceId: ByteArray,   // Ed25519 pubkey (32 bytes)
-    override fun equals(other: Any?): Boolean = other is RelayConfig && baseUrl == other.baseUrl
-    override fun hashCode(): Int = baseUrl.hashCode()
-)
+    val localDeviceId: ByteArray,  // Ed25519 pubkey (32 bytes)
+) {
+    // Custom equals to avoid ByteArray identity comparison.
+    override fun equals(other: Any?): Boolean = other is RelayConfig &&
+        baseUrl == other.baseUrl && localDeviceId.contentEquals(other.localDeviceId)
+    override fun hashCode(): Int = baseUrl.hashCode() * 31 + localDeviceId.contentHashCode()
+}
 
 data class InboxEntry(
     val id: String,
