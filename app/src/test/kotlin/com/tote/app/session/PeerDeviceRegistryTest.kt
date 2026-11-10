@@ -10,6 +10,10 @@ import org.junit.Test
  * but we CAN test that `peersToJson` → `peersFromJson` round-trips
  * correctly — including all fields, and that order is preserved.
  *
+ * Note: [PeerDeviceRegistry.Peer] is a data class with [ByteArray] fields.
+ * Data class `equals` uses reference equality for arrays (NOT contentEquals),
+ * so we use [contentEquals] explicitly in the assertions.
+ *
  * The actual SharedPreferences I/O is exercised on-device during manual
  * testing and would be the next thing to cover if we added Robolectric
  * (deliberately avoided to keep the test runner lean).
@@ -35,8 +39,9 @@ class PeerDeviceRegistryTest {
         val recovered = PeerDeviceRegistry.peersFromJson(json)
         assertThat(recovered).hasSize(1)
         val r = recovered[0]
-        assertThat(r.deviceId).isEqualTo(peer.deviceId)
-        assertThat(r.x25519Pub).isEqualTo(peer.x25519Pub)
+        // Use contentEquals for ByteArray comparison
+        assertThat(r.deviceId.contentEquals(peer.deviceId)).isTrue()
+        assertThat(r.x25519Pub.contentEquals(peer.x25519Pub)).isTrue()
         assertThat(r.displayName).isEqualTo("Test Device")
         assertThat(r.pairedAt).isEqualTo(1_700_000_000_000L)
         assertThat(r.lastSeenAt).isEqualTo(1_700_000_001_000L)
@@ -83,7 +88,7 @@ class PeerDeviceRegistryTest {
         )
         val json = PeerDeviceRegistry.peersToJson(listOf(peer))
         val recovered = PeerDeviceRegistry.peersFromJson(json)
-        assertThat(recovered[0].deviceId).isEqualTo(originalId)
+        assertThat(recovered[0].deviceId.contentEquals(originalId)).isTrue()
         assertThat(recovered[0].deviceId.size).isEqualTo(32)
     }
 
@@ -106,6 +111,8 @@ class PeerDeviceRegistryTest {
             throw AssertionError("Expected JSONException")
         } catch (t: org.json.JSONException) {
             // expected
+        } catch (t: ClassCastException) {
+            // expected — org.json may also throw ClassCastException when a string field is a number
         }
     }
 

@@ -126,23 +126,7 @@ class KeystoreWrapper(private val context: Context) {
         } catch (t: Throwable) {
             throw KeystoreUnavailableException("Failed to load master key: ${t.message}", t)
         }
-        return encryptWithKey(plaintext, key)
-    }
-
-    /**
-     * Encrypt a plaintext using a specific [SecretKey].
-     *
-     * Exposed for JVM testability — the test supplies a software key (NOT
-     * from AndroidKeyStore) and validates the AES-GCM math.
-     */
-    fun encryptWithKey(plaintext: ByteArray, key: SecretKey): ByteArray {
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, key)
-        val iv = cipher.iv  // 12 bytes for GCM
-        require(iv.size == GCM_IV_LENGTH) { "Unexpected IV length: ${iv.size}" }
-        val ct = cipher.doFinal(plaintext)
-        // Output: iv(12) + ct + tag(16)
-        return iv + ct
+        return AesGcmMath.encrypt(plaintext, key)
     }
 
     /**
@@ -159,24 +143,7 @@ class KeystoreWrapper(private val context: Context) {
         } catch (t: Throwable) {
             throw KeystoreUnavailableException("Failed to load master key: ${t.message}", t)
         }
-        return decryptWithKey(ciphertext, key)
-    }
-
-    /**
-     * Decrypt a ciphertext using a specific [SecretKey].
-     *
-     * Exposed for JVM testability — see [encryptWithKey].
-     */
-    fun decryptWithKey(ciphertext: ByteArray, key: SecretKey): ByteArray {
-        require(ciphertext.size > GCM_IV_LENGTH + GCM_TAG_LENGTH_BYTES) {
-            "Ciphertext too short: ${ciphertext.size} bytes (need at least ${GCM_IV_LENGTH + GCM_TAG_LENGTH_BYTES})"
-        }
-        val iv = ciphertext.copyOfRange(0, GCM_IV_LENGTH)
-        val ctWithTag = ciphertext.copyOfRange(GCM_IV_LENGTH, ciphertext.size)
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        val params = GCMParameterSpec(GCM_TAG_LENGTH_BITS, iv)
-        cipher.init(Cipher.DECRYPT_MODE, key, params)
-        return cipher.doFinal(ctWithTag)
+        return AesGcmMath.decrypt(ciphertext, key)
     }
 
     /**
