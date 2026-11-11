@@ -149,15 +149,19 @@ class WebViewPool(
                     if (window != null) {
                         val latch = java.util.concurrent.CountDownLatch(1)
                         var success = false
+                        val listener = object : android.view.PixelCopy.OnPixelCopyFinishedListener {
+                            override fun onPixelCopyFinished(result: Int) {
+                                success = (result == android.view.PixelCopy.SUCCESS)
+                                latch.countDown()
+                            }
+                        }
+                        val handler = wv.handler ?: android.os.Handler(android.os.Looper.getMainLooper())
                         android.view.PixelCopy.request(
                             window,
                             srcRect,
                             bitmap,
-                            { result ->
-                                success = (result == android.view.PixelCopy.SUCCESS)
-                                latch.countDown()
-                            },
-                            wv.handler ?: android.os.Looper.getMainLooper(),
+                            listener,
+                            handler,
                         )
                         latch.await(500, java.util.concurrent.TimeUnit.MILLISECONDS)
                         if (success) {
