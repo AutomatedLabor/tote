@@ -57,6 +57,8 @@ fun BrowserScreen(
     val activeProfileId by viewModel.activeProfileId.collectAsState()
     val lastSendStatus by viewModel.lastSendStatus.collectAsState()
     val context = androidx.compose.ui.platform.LocalContext.current
+    val profiles = remember { context.applicationContext as ToteApplication }
+        .profileRegistry.getAllProfiles()
 
     // One-time setup: tell the ViewModel about the device tier so it can size
     // the WebViewPool. We do this once on first composition.
@@ -232,23 +234,24 @@ fun BrowserScreen(
         }
     }
 
-    // Profile picker dialog
+    // Profile picker bottom-sheet (replaces the v0.4.0 AlertDialog per v1.2.0-alpha1)
     if (showProfilePicker) {
-        ProfilePickerDialog(
-            onDismiss = { showProfilePicker = false },
-            onProfileSelected = { profileId ->
-                if (profileId == "new") {
-                    // Create a new profile
-                    val app = ToteApplication.get(context)
-                    val newId = app.profileRegistry.createProfile(
-                        displayName = "Profile ${app.profileRegistry.getAllProfiles().size + 1}",
-                    )
-                    viewModel.switchProfile(newId)
-                } else {
-                    viewModel.switchProfile(profileId)
-                }
+        ProfileSwitcherBottomSheet(
+            profiles = profiles,
+            activeProfileId = activeProfileId,
+            onProfileSelected = { profile ->
+                viewModel.switchProfile(profile.id)
                 showProfilePicker = false
-            }
+            },
+            onCreateNew = {
+                val app = ToteApplication.get(context)
+                val newId = app.profileRegistry.createProfile(
+                    displayName = "Profile ${app.profileRegistry.getAllProfiles().size + 1}",
+                )
+                viewModel.switchProfile(newId)
+                showProfilePicker = false
+            },
+            onDismiss = { showProfilePicker = false },
         )
     }
 

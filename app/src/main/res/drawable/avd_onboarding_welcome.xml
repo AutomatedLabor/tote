@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Animated vector drawable for the onboarding "Welcome" page.
+    A pulsing globe icon that animates scale + rotation.
+
+    Per ADR-019: replaces the static Icons.Default.Public used in v1.0.0.
+    No external Lottie dependency — uses the platform AnimatedVectorDrawable
+    API (available since API 24, our minSdk is 26).
+-->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="120dp"
+            android:height="120dp"
+            android:viewportWidth="120"
+            android:viewportHeight="120">
+            <!-- Globe outer circle -->
+            <path
+                android:name="globe"
+                android:fillColor="#FF5722"
+                android:pathData="M60,20 m-40,0 a40,40 0 1,0 80,0 a40,40 0 1,0 -80,0" />
+            <!-- Meridian + parallel lines -->
+            <path
+                android:name="lines"
+                android:strokeColor="#FFFFFF"
+                android:strokeWidth="2"
+                android:fillColor="#00000000"
+                android:pathData="M20,60 L100,60 M60,20 L60,100 M30,30 Q60,60 30,90 M90,30 Q60,60 90,90" />
+        </vector>
+    </aapt:attr>
+    <target android:name="globe">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:duration="2000"
+                    android:valueFrom="0.9"
+                    android:valueTo="1.1"
+                    android:valueType="floatType"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse" />
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:duration="2000"
+                    android:valueFrom="0.9"
+                    android:valueTo="1.1"
+                    android:valueType="floatType"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse" />
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="lines">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:duration="8000"
+                android:valueFrom="0"
+                android:valueTo="360"
+                android:valueType="floatType"
+                android:repeatCount="infinite" />
+        </aapt:attr>
+    </target>
+</animated-vector>

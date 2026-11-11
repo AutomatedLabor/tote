@@ -8,9 +8,9 @@ You log into a grocery web app on Phone A. 5 minutes later (or 5 weeks later) yo
 
 If the user loses a phone, they revoke its access from a paired device. If both phones are lost, they recover from a 12-word code. The product survives worst-day-of-their-life scenarios.
 
-## Status: ALPHA — v1.1.0-alpha1 SHIPPED (PUBLISHED)
+## Status: ALPHA — v1.2.0-alpha1 SHIPPED (PUBLISHED)
 
-Tote is in active alpha development. **Eight pre-release APKs are now live on GitHub Releases:**
+Tote is in active alpha development. **Nine pre-release APKs are now live on GitHub Releases:**
 
 | Release | APK size | APK SHA-256 | Tests | Date |
 |---|---|---|---|---|
@@ -22,6 +22,7 @@ Tote is in active alpha development. **Eight pre-release APKs are now live on Gi
 | `v0.6.0-alpha1` | 11.55 MB | `66d1661697327328af7eb08b2694be9eb5dde3c26723fbaa5894f6454c9709d7` | 140 | 2026-11-11 |
 | `v1.0.0-alpha1` | 11.02 MB | `f99bf2dcca6059962f33304c8352f409418996ec72bdee2969a4edf14f1db745` | 140 | 2026-11-11 |
 | `v1.1.0-alpha1` | 11.02 MB | `57ff721103df023c0e4f243c41784890fc67816f95377c049a92b1a214e5becf` | 161 | 2026-11-11 |
+| `v1.2.0-alpha1` | (post-build) | (see sidecar) | ~167 | 2026-11-11 |
 
 All APKs are:
 - Code-signed with the production release keystore (cert SHA-256: `df96cae5c963cef4b2adccd6ccf3a76113a0386e2376232f3dc758374acf4196`).
@@ -31,7 +32,7 @@ All APKs are:
 - SLSA build provenance attestation attempted (best-effort via `continue-on-error`).
 - 100% JVM unit-test passing on each push.
 
-**v1.1.0-alpha1** adds biometric-protected AndroidKeyStore master key (Class 3 STRONG auth for decrypt, graceful fallback if no biometrics enrolled), PixelCopy via Window+Rect bounds (captures WebGL/hardware surfaces in tab thumbnails), ProfileSwitcherBottomSheet (Material3 ModalBottomSheet with deterministic colored avatars), PRIVACY.md (full privacy policy covering local storage + relay traffic + permissions), CONTRIBUTING.md (clone/build/test guide + PR checklist + iron rules), and 21 new Robolectric integration tests for IdentityStore + PeerDeviceRegistry (full SharedPreferences I/O round-trip on the JVM).
+**v1.2.0-alpha1** adds animated onboarding illustrations (4 AnimatedVectorDrawables — no Lottie dependency, uses the platform AVD API), wires the ProfileSwitcherBottomSheet into BrowserScreen (replacing the AlertDialog), adds BiometricDecryptHelper for the master-key decrypt prompt flow, ships a single-device end-to-end instrumented test (full transfer pipeline: A→B identity→ECDH→pairingRoot→epoch key→sign+encrypt→decrypt+verify), adds Espresso UI tests for the SAS verify dialog, documents the PAT + keystore rotation procedures (with a 90-day reminder cron), and submits the F-Droid metadata PR (fork AutomatedLabor/fdroiddata, branch `tote-submission`).
 
 - **Working name:** Tote (placeholder; subject to user testing).
 - **One-line pitch:** WhatsApp Linked Devices, for web sessions, on mobile.

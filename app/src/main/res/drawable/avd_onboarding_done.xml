@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Animated vector for the "Done" onboarding page.
+    A checkmark that draws in via trimPathEnd.
+-->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="120dp"
+            android:height="120dp"
+            android:viewportWidth="120"
+            android:viewportHeight="120">
+            <path
+                android:name="check"
+                android:strokeColor="#00695C"
+                android:strokeWidth="8"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round"
+                android:fillColor="#00000000"
+                android:trimPathStart="0"
+                android:trimPathEnd="0"
+                android:pathData="M30,60 L52,82 L90,38" />
+        </vector>
+    </aapt:attr>
+    <target android:name="check">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="trimPathEnd"
+                android:duration="800"
+                android:valueFrom="0"
+                android:valueTo="1"
+                android:repeatCount="infinite"
+                android:repeatMode="restart"
+                android:startOffset="500" />
+        </aapt:attr>
+    </target>
+</animated-vector>

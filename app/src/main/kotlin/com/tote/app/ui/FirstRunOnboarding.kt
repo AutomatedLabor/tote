@@ -135,11 +135,10 @@ private fun WelcomePage() {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            Icons.Default.Public,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = MaterialTheme.colorScheme.primary,
+        // Per v1.2.0-alpha1: animated pulsing globe replaces static icon
+        AnimatedVectorIcon(
+            drawableRes = com.tote.app.R.drawable.avd_onboarding_welcome,
+            sizeDp = 120,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -189,11 +188,10 @@ private fun IdentityPage(app: ToteApplication) {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            Icons.Default.Fingerprint,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = MaterialTheme.colorScheme.primary,
+        // Per v1.2.0-alpha1: animated pulsing lock+key replaces static fingerprint icon
+        AnimatedVectorIcon(
+            drawableRes = com.tote.app.R.drawable.avd_onboarding_identity,
+            sizeDp = 120,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -219,7 +217,7 @@ private fun IdentityPage(app: ToteApplication) {
                     style = MaterialTheme.typography.bodyMedium.copy(fontFamily = FontFamily.Monospace),
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("Key material stored in app-private SharedPreferences (sandboxed). AndroidKeyStore AES-GCM wrapping lands in v1.0.0.",
+                Text("Key material stored in app-private SharedPreferences (sandboxed). AndroidKeyStore AES-GCM wrapping is active; biometric Class 3 STRONG auth required for decrypt (v1.1.0+).",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 )
@@ -237,11 +235,10 @@ private fun RecoveryDisplayPage(mnemonic: List<String>) {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            Icons.Default.Key,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = MaterialTheme.colorScheme.primary,
+        // Per v1.2.0-alpha1: 12 dots pulsing in sequence (one per word)
+        AnimatedVectorIcon(
+            drawableRes = com.tote.app.R.drawable.avd_onboarding_recovery,
+            sizeDp = 200,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -306,11 +303,10 @@ private fun RecoveryConfirmPage(mnemonic: List<String>) {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            Icons.Default.CheckCircle,
-            contentDescription = null,
-            modifier = Modifier.size(72.dp),
-            tint = if (isMatch) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+        // Reuse the recovery animation for the confirm page too
+        AnimatedVectorIcon(
+            drawableRes = com.tote.app.R.drawable.avd_onboarding_recovery,
+            sizeDp = 120,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -353,11 +349,10 @@ private fun DonePage() {
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(
-            Icons.Default.CheckCircle,
-            contentDescription = null,
-            modifier = Modifier.size(96.dp),
-            tint = MaterialTheme.colorScheme.primary,
+        // Per v1.2.0-alpha1: animated drawing checkmark replaces static icon
+        AnimatedVectorIcon(
+            drawableRes = com.tote.app.R.drawable.avd_onboarding_done,
+            sizeDp = 120,
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Animated vector for the "Identity generation" onboarding page.
+    A key + lock that pulses + rotates the key into the lock.
+-->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="120dp"
+            android:height="120dp"
+            android:viewportWidth="120"
+            android:viewportHeight="120">
+            <!-- Lock body -->
+            <path
+                android:name="lock"
+                android:fillColor="#00695C"
+                android:pathData="M40,55 L80,55 L80,90 L40,90 Z" />
+            <!-- Lock shackle -->
+            <path
+                android:name="shackle"
+                android:strokeColor="#00695C"
+                android:strokeWidth="6"
+                android:fillColor="#00000000"
+                android:pathData="M48,55 L48,42 a12,12 0 0,1 24,0 L72,55" />
+            <!-- Keyhole -->
+            <path
+                android:name="keyhole"
+                android:fillColor="#FFFFFF"
+                android:pathData="M60,65 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 M58,69 L62,69 L62,78 L58,78 Z" />
+        </vector>
+    </aapt:attr>
+    <target android:name="lock">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="scaleX"
+                android:duration="1500"
+                android:valueFrom="0.95"
+                android:valueTo="1.05"
+                android:valueType="floatType"
+                android:repeatCount="infinite"
+                android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+</animated-vector>

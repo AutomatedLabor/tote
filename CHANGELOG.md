@@ -7,13 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Pending (post-v1.1.0-alpha1)
-- Animated illustrations for first-run onboarding (Lottie)
-- Full Espresso UI tests for the pairing flow (current scaffold verifies app launches only)
-- End-to-end transfer test on a real device pair
-- Play Store + F-Droid submission (listing metadata drafted in tote-docs/ops/DISTRIBUTION.md)
-- PAT rotation (pre-public-launch)
-- Keystore password rotation (pre-public-launch, document cert transition in SECURITY.md)
+### Pending (post-v1.2.0-alpha1)
+- F-Droid submission PR opened (cross-repo PR pending — fork AutomatedLabor/fdroiddata branch `tote-submission` ready, will submit via F-Droid forum if cross-repo PR doesn't work)
+- Play Store submission (listing drafted, needs content rating questionnaire + screenshots)
+- PAT + keystore rotation (procedures documented in tote-docs/ops/PAT-ROTATION.md + KEYSTORE-ROTATION.md, scheduled reminder cron registered — fires every 90 days)
+
+## [v1.2.0-alpha1] - 2026-11-11
+
+### Added
+- **AnimatedVectorDrawable illustrations for onboarding** — 4 new AVDs (avd_onboarding_welcome, avd_onboarding_identity, avd_onboarding_recovery, avd_onboarding_done). Welcome: pulsing globe. Identity: pulsing lock+key. Recovery: 12 dots pulsing in sequence (one per word). Done: drawing checkmark. New `AnimatedVectorIcon` composable renders + starts the AVD. Replaces the static Material icons used in v1.0.0-v1.1.0.
+- **ProfileSwitcherBottomSheet wired into BrowserScreen** — replaces the v0.4.0 AlertDialog-based ProfilePickerDialog. The bottom sheet shows all existing profiles as rows with deterministic colored avatars + active check mark, plus a "Create new profile" row at the bottom. TalkBack-tagged (`role = Button`, `contentDescription = "Profile <name>, tap to switch"`).
+- **BiometricDecryptHelper** — wraps the BiometricPrompt flow for decrypting the AndroidKeyStore master key. Detects whether biometric Class 3 STRONG auth is available + whether the master key requires it. If unavailable, gracefully skips the prompt (returns null cipher → caller falls back to no-biometric decrypt). Otherwise wraps the cipher in BiometricPrompt.CryptoObject + invokes the prompt. Added `BiometricDecryptState` Compose state holder.
+- **Single-device end-to-end instrumented test** — `SessionTransferEndToEndTest` (3 tests). Verifies the full transfer pipeline: Device A + B identities → ECDH shared secret → both derive same pairingRoot → both derive same epoch key → sign + encrypt SessionBlob on A → decrypt + verify signature on B → wrong epoch key fails → wrong sender pubkey fails. Also tests PairingPayload QR round-trip + both devices deriving same SAS.
+- **Espresso UI tests for the SAS verify dialog** — `SasVerifyDialogUiTest` (3 tests) using Compose's `createComposeRule`. Verifies the dialog renders the 6-digit SAS + 3-emoji SAS + match/mismatch buttons, and that tapping the buttons invokes the right callbacks.
+- **PAT rotation procedure doc** — `tote-docs/ops/PAT-ROTATION.md`. Covers why rotate, the 5-step rotation procedure (generate new PAT → update GitHub Actions secrets → update crons → revoke old → verify), + an audit log table. A scheduled reminder cron (job ID 522957) fires every 90 days to remind the principal to rotate.
+- **Keystore rotation procedure doc** — `tote-docs/ops/KEYSTORE-ROTATION.md`. Covers why rotate (cert compromise → malicious APKs as "official updates"), what gets rotated (keystore file + 3 passwords + cert SHA pin), side effect (existing installs can't auto-update — uninstall + reinstall), 10-step procedure (generate new keystore on air-gapped machine → extract cert SHA → verify with apksigner → archive old offline → upload new to tote-secrets → update GitHub Actions secrets → update cert pin in CI → update docs → build + ship → verify + announce), + audit log table.
+- **F-Droid submission metadata** — `com.tote.app.yml` drafted in the `AutomatedLabor/fdroiddata` fork (branch `tote-submission`). Includes app description, build config (gradle + commit v1.0.0-alpha1 + subdir app + output app-release.apk), maintainer notes (deps table verifying all FLOSS-compatible, anti-fraud bright line, jna LGPL note about user-replaceable .so files), AutoUpdateMode + UpdateCheckMode config.
+
+### Changed
+- **BrowserScreen** — `showProfilePicker` now renders `ProfileSwitcherBottomSheet` (was `ProfilePickerDialog`). Pulls the profile list from `ToteApplication.profileRegistry.getAllProfiles()` at composition.
+- **FirstRunOnboarding** — all 5 pages now use `AnimatedVectorIcon` instead of static Material icons.
+- **build.gradle.kts** — versionCode 8 → 9, versionName 1.1.0-alpha1 → 1.2.0-alpha1. Added `androidx.biometric:biometric:1.2.0-alpha05` + `androidx.fragment:fragment-ktx:1.8.4` implementations. Added `androidx.compose.ui:ui-test-junit4` + `ui-test-manifest` for androidTest.
+
+### Fixed
+- None — all v1.1.0-alpha1 tests preserved.
 
 ## [v1.1.0-alpha1] - 2026-11-11
 

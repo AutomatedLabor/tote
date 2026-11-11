@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Animated vector for the "Recovery code" onboarding page.
+    12 small dots arranged in a row that pulse sequentially — representing
+    the 12-word mnemonic being generated one word at a time.
+-->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="200dp"
+            android:height="60dp"
+            android:viewportWidth="200"
+            android:viewportHeight="60">
+            <!-- 12 dots, 16dp apart, centered -->
+            <path android:name="dot1"  android:fillColor="#FF5722" android:pathData="M10,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot2"  android:fillColor="#FF5722" android:pathData="M26,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot3"  android:fillColor="#FF5722" android:pathData="M42,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot4"  android:fillColor="#FF5722" android:pathData="M58,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot5"  android:fillColor="#FF5722" android:pathData="M74,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot6"  android:fillColor="#FF5722" android:pathData="M90,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot7"  android:fillColor="#FF5722" android:pathData="M106,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot8"  android:fillColor="#FF5722" android:pathData="M122,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot9"  android:fillColor="#FF5722" android:pathData="M138,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot10" android:fillColor="#FF5722" android:pathData="M154,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot11" android:fillColor="#FF5722" android:pathData="M170,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+            <path android:name="dot12" android:fillColor="#FF5722" android:pathData="M186,30 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+        </vector>
+    </aapt:attr>
+    <!-- Each dot pulses with a 100ms delay from the previous — sequence effect -->
+    <target android:name="dot1">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="0"   android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot2">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="100" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot3">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="200" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot4">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="300" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot5">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="400" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot6">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="500" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot7">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="600" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot8">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="700" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot9">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="800" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot10">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="900" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot11">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="1000" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+    <target android:name="dot12">
+        <aapt:attr name="android:animation">
+            <objectAnimator android:propertyName="scaleY" android:duration="1200" android:startOffset="1100" android:valueFrom="1" android:valueTo="1.5" android:repeatCount="infinite" android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+</animated-vector>
