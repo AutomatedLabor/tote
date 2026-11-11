@@ -100,12 +100,15 @@ class SessionTransferEndToEndTest {
         val profileId = "default"
 
         // === 5. Sign + encrypt using SessionBlob.encode ===
+        // SessionBlob.encode signature: (profileId: ByteArray, senderDeviceId: ByteArray, sequence: Long, ttl: Int, plaintext: ByteArray, epochKey: ByteArray, identity: DeviceIdentity)
+        val profileIdBytes = profileId.toByteArray(Charsets.US_ASCII).copyOf(16)  // pad/truncate to 16 bytes
         val sessionBlob = com.tote.app.session.SessionBlob.encode(
+            profileId = profileIdBytes,
+            senderDeviceId = senderDeviceId.copyOf(16),  // truncate to 16 bytes for the wire format
+            sequence = sequence,
+            ttl = 7 * 24 * 3600,  // 7-day TTL
             plaintext = plaintext,
             epochKey = epochA.currentKey,
-            senderDeviceId = senderDeviceId,
-            sequence = sequence,
-            profileId = profileId,
             identity = deviceA,
         )
         // Verify the wire format: MAGIC(4) + version(2) + senderIdLen(1) + senderId(32) +
