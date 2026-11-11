@@ -78,15 +78,20 @@ class IdentityStoreRobolectricTest {
         val store = IdentityStore(context)
         val identity = store.getOrCreateIdentity()
         val state1 = store.getOrCreateEpochState(identity)
-        val root1 = state1.currentKey.copyOf()
+        val root1 = state1.pairingRoot.copyOf()
+        val key1 = state1.currentKey.copyOf()
 
         val newRoot = ByteArray(32) { 0x42.toByte() }
         store.savePairingRoot(newRoot)
 
         val state2 = store.getOrCreateEpochState(identity)
-        // The epoch state should now use the new root
-        assertThat(state2.currentKey.contentEquals(newRoot)).isTrue()
-        assertThat(state2.currentKey.contentEquals(root1)).isFalse()
+        // The new state's pairingRoot should be the newRoot we saved.
+        // (currentKey is HKDF-derived from pairingRoot — tested via the
+        // pairingRoot field, not currentKey.)
+        assertThat(state2.pairingRoot.contentEquals(newRoot)).isTrue()
+        assertThat(state2.pairingRoot.contentEquals(root1)).isFalse()
+        // The derived currentKey should also change (different input → different output).
+        assertThat(state2.currentKey.contentEquals(key1)).isFalse()
     }
 
     @Test
