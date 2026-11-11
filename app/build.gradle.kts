@@ -59,8 +59,8 @@ android {
         applicationId = "com.tote.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 7
-        versionName = "1.0.0-alpha1"
+        versionCode = 8
+        versionName = "1.1.0-alpha1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -117,6 +117,15 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    testOptions {
+        unitTests {
+            // Required for Robolectric — needs access to android resources
+            // and the merged manifest at test runtime.
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -152,4 +161,13 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.okhttp)
     testImplementation(libs.org.json)
+    testImplementation(libs.robolectric)
+    testImplementation("androidx.test:core:1.6.1")
+    testImplementation("androidx.test.ext:junit:1.2.1")
+
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation(libs.truth)
 }

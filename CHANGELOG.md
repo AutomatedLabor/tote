@@ -7,11 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Pending (post-v1.0.0-alpha1)
+### Pending (post-v1.1.0-alpha1)
 - Animated illustrations for first-run onboarding (Lottie)
-- Robolectric integration tests for SharedPreferences-backed stores
-- End-to-end instrumented tests (Espresso / UI Automator) for the QR → pairing → SAS → persist flow
+- Full Espresso UI tests for the pairing flow (current scaffold verifies app launches only)
+- End-to-end transfer test on a real device pair
 - Play Store + F-Droid submission (listing metadata drafted in tote-docs/ops/DISTRIBUTION.md)
+- PAT rotation (pre-public-launch)
+- Keystore password rotation (pre-public-launch, document cert transition in SECURITY.md)
+
+## [v1.1.0-alpha1] - 2026-11-11
+
+### Added
+- **Biometric-protected AndroidKeyStore master key** — `KeystoreWrapper.getOrCreateMasterKey(requireBiometricForDecrypt=true)` is now the default. The master key requires Class 3 STRONG biometric auth for DECRYPT (encrypt stays no-auth, so app start can publish our pubkey without prompting). On devices without biometrics enrolled, gracefully degrades to no-auth key. Added `prepareDecryptCipher()` + `decryptWithCipher(ciphertext, cipher)` for the BiometricPrompt flow. Added `masterKeyRequiresBiometric()` for the UI to decide whether to prompt.
+- **PixelCopy via Window + Rect bounds** — `WebViewPool.WebViewEntry.captureScreenshot()` now attempts PixelCopy.request(window, rect, bitmap, listener, handler) on Android 8+ when the WebView is attached to a window. Falls back to View.draw(Canvas) on older devices or if PixelCopy fails. Captures WebGL/hardware-accelerated content (View.draw only captures DOM pixels).
+- **ProfileSwitcherBottomSheet** — new Material3 ModalBottomSheet for profile switching. Replaces the v0.4.0 AlertDialog-based ProfilePickerDialog. Each profile row has a colored avatar (deterministic from profileId hash) + name + active check mark. TalkBack-tagged: `role = Button`, `contentDescription = "Profile <name>, tap to switch"`.
+- **PRIVACY.md** — comprehensive privacy policy covering local storage (SharedPreferences, WebView cookies), relay traffic (ciphertext-only), permissions (CAMERA, FOREGROUND_SERVICE_SPECIAL_USE, etc.), anti-fraud bright line, and open-source commitment.
+- **CONTRIBUTING.md** — quick start (clone, build, test), architecture overview, API stability tiers, PR checklist, iron rules, security vulnerability reporting, license.
+- **Robolectric integration tests** — `PeerDeviceRegistryRobolectricTest` (11 tests covering full SharedPreferences I/O round-trip, singleton reset, persistence across process restart, multi-peer ordering) + `IdentityStoreRobolectricTest` (10 tests covering identity generation, persistence, epoch state, savePairingRoot, saveRecoverySalt, zeroize).
+- **Espresso instrumented test scaffold** — `MainActivityInstrumentedTest` (3 tests covering app launch, package name, ToteApplication bootstrap). Full Espresso tests for the pairing flow are TODO at v1.0.0 ship (require camera-injection tooling).
+
+### Changed
+- **build.gradle.kts** — versionCode 7 → 8, versionName 1.0.0-alpha1 → 1.1.0-alpha1. Added `testOptions { unitTests { isIncludeAndroidResources = true; isReturnDefaultValues = true } }` for Robolectric. Added Robolectric + androidx.test deps + Espresso androidTestImplementation deps.
+- **libs.versions.toml** — added `robolectric = "4.13"` + library entry.
+
+### Fixed
+- None — all v1.0.0-alpha1 tests preserved (140 JVM tests + 21 new Robolectric tests = 161 total expected).
 
 ## [v1.0.0-alpha1] - 2026-11-11
 

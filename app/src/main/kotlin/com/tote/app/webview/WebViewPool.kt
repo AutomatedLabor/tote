@@ -107,15 +107,17 @@ class WebViewPool(
          * (WebGL, video). For tab thumbnails this is acceptable — the user
          * sees the page layout, not the live WebGL frame.
          *
-         * PixelCopy (which CAN capture hardware surfaces) requires a Window
-         * or SurfaceView, but WebView is a ViewGroup — no direct overload
-         * exists. We'd need to grab the Window from the rootView, but that
-         * captures the WHOLE window, not just the WebView. For v1.0.0 we'll
-         * investigate a per-WebView SurfaceView wrapper or use
-         * PixelCopy.request(Window, Rect, ...) with the WebView's bounds.
+         * Per v1.1.0-alpha1: when the WebView is attached to a window, we
+         * attempt PixelCopy via the Window + Rect bounds overload (which
+         * captures hardware-accelerated content). Falls back to View.draw
+         * if PixelCopy fails or the WebView isn't attached.
          *
-         * The screenshot is stored in [screenshot] and used as a thumbnail
-         * when the tab is next displayed.
+         * PixelCopy flow:
+         *   1. Find the WebView's location in window coordinates
+         *   2. Compute a Rect (clipped to 256x256 max)
+         *   3. PixelCopy.request(window, rect, bitmap, listener, handler)
+         *   4. Wait on a CountDownLatch (with 500ms timeout)
+         *   5. If SUCCESS, use the bitmap; else fall back to View.draw
          */
         private fun captureScreenshot(wv: WebView) {
             val width = wv.width
@@ -125,6 +127,50 @@ class WebViewPool(
             val targetW = minOf(width, 256)
             val targetH = minOf(height, 256)
             val bitmap = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888)
+
+            // Try PixelCopy via Window + Rect bounds (API 26+)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                wv.isAttachedToWindow &&
+                wv.rootView != null &&
+                wv.rootView.windowToken != null
+            ) {
+                try {
+                    // Get the WebView's location in window coordinates
+                    val location = IntArray(2)
+                    wv.getLocationInWindow(location)
+                    val srcRect = android.graphics.Rect(
+                        location[0],
+                        location[1],
+                        location[0] + targetW,
+                        location[1] + targetH,
+                    )
+                    // Find the Window from the rootView
+                    val window = (w.rootView.context as? android.app.Activity)?.window
+                    if (window != null) {
+                        val latch = java.util.concurrent.CountDownLatch(1)
+                        var success = false
+                        android.view.PixelCopy.request(
+                            window,
+                            srcRect,
+                            bitmap,
+                            { result ->
+                                success = (result == android.view.PixelCopy.SUCCESS)
+                                latch.countDown()
+                            },
+                            wv.handler ?: android.os.Looper.getMainLooper(),
+                        )
+                        latch.await(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                        if (success) {
+                            screenshot = bitmap
+                            return
+                        }
+                    }
+                } catch (t: Throwable) {
+                    android.util.Log.w("WebViewPool", "PixelCopy failed: ${t.message} — falling back to View.draw")
+                }
+            }
+
+            // Fallback: View.draw (DOM-only capture)
             try {
                 val canvas = android.graphics.Canvas(bitmap)
                 wv.draw(canvas)
