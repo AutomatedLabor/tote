@@ -145,7 +145,7 @@ class WebViewPool(
                         location[1] + targetH,
                     )
                     // Find the Window from the rootView
-                    val window = (w.rootView.context as? android.app.Activity)?.window
+                    val window = (wv.rootView.context as? android.app.Activity)?.window
                     if (window != null) {
                         val latch = java.util.concurrent.CountDownLatch(1)
                         var success = false
